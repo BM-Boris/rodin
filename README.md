@@ -42,7 +42,7 @@ import rodin
 
 # Assume 'features.csv' and 'class_labels.csv' are your datasets
 features_path = 'path/to/features.csv'
-classes_path = 'path/to/class_labels.csv.csv'
+classes_path = 'path/to/class_labels.csv'
 
 # Creating an instance of Rodin_Class
 rodin_instance = rodin.create_object_csv(features_path, classes_path)
