@@ -40,9 +40,9 @@ Here's a basic example demonstrating the usage of Rodin for data analysis. Compr
 ```python
 import rodin
 
-# Assume 'data.csv' and 'classes.csv' are your datasets
-features_path = 'path/to/data.csv'
-classes_path = 'path/to/classes.csv'
+# Assume 'features.csv' and 'class_labels.csv' are your datasets
+features_path = 'path/to/features.csv'
+classes_path = 'path/to/class_labels.csv.csv'
 
 # Creating an instance of Rodin_Class
 rodin_instance = rodin.create_object_csv(features_path, classes_path)
