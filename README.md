@@ -53,18 +53,21 @@ rodin_instance.transform()
 # Run t-test comparing two groups based on 'age'
 rodin_instance.ttest('age')
 
+# Run two-way anova test comparing groups based on 'age' and 'region'
+rodin_instance.twoway_anova(['age','region'])
+
 # Perform PCA with 2 principal components
 rodin_instance.run_pca(n_components=2)
 
 # Plotting the PCA results
-# 'sample_type' column in the 'samples' DataFrame is used for coloring the points
-rodin_instance.plot(dr_name='pca', hue='age', title='PCA Plot')
+# 'region' column in the 'samples' DataFrame is used for coloring the points
+rodin_instance.plot(dr_name='pca', hue='region', title='PCA Plot')
 
 # Pathway analysis 
 rodin_instance.analyze_pathways(pvals='p_value', stats='statistic')
 # Replace 'p_value' and 'statistic' with the actual column names in your 'features' DataFrame(rodin_instance.features)
 ```
 
-#### _Contact_
+#### Contact
 For questions, suggestions, or feedback, please contact boris.minasenko@emory.edu
 
