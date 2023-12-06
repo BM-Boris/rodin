@@ -805,7 +805,7 @@ class Rodin_Class:
                     sns.boxplot(y=df, ax=ax, **boxplot_params)
 
                 # Retrieve and set the corresponding EID as the subplot title
-                eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values[0]
+                eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
                 ax.set_title(f"EID: {eid}")
 
         # Set the overall title and show plot
@@ -884,7 +884,7 @@ class Rodin_Class:
                     sns.violinplot(y=df, ax=ax, **violinplot_params)
 
                 # Retrieve and set the corresponding EID as the subplot title
-                eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values[0]
+                eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
                 ax.set_title(f"EID: {eid}")
 
         # Set the overall title and show plot
