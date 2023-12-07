@@ -16,7 +16,7 @@ We recommend installing Rodin in a separate Conda environment for effective depe
 
 #### Prerequisites
 
-- Python (3.11 or higher)
+- Python (3.10 or higher)
 - Conda (Anaconda or Miniconda)
 
 #### Setting Up a Conda Environment
