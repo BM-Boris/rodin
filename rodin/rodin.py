@@ -1064,6 +1064,7 @@ def create_object_csv(file_path_features, file_path_classes,feat_sep='\t',class_
     # Create a placeholder samples DataFrame
     # This can be replaced with actual sample annotations if available
     samples = pd.read_csv(file_path_classes,sep = class_sep)
+    samples.iloc[:,0] = samples.iloc[:,0].astype(str)
 
     return Rodin_Class(X=X, features=features,samples=samples)
 
