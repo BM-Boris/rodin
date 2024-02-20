@@ -623,12 +623,14 @@ class Rodin_Class:
     
         if moderator and moderator not in self.samples.columns:
             raise ValueError(f"Moderator column '{moderator}' not found in samples.")
-    
+
+        
         df = self.X.T.copy()
         n_cols = df.shape[1]
         p_values = []
         features_list = []  # Renamed from 'list' to 'features_list' to avoid shadowing built-in names
         dependent_var = self.samples[target_column]
+        dependent_var.index = self.samples.iloc[:,0]
     
         if moderator:
             df['moderator_var'] = self.samples[moderator]
