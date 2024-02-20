@@ -115,6 +115,10 @@ class Rodin_Class:
             sample_ids_set = set(self.samples.iloc[:, 0])
             if x_columns_set != sample_ids_set:
                 raise ValueError("Column names in X do not match sample IDs in samples")
+            if list(self.X.columns) != list(self.samples.iloc[:, 0]):
+                raise ValueError("The order of sample IDs must be the same in X and in samples")
+
+                
                 
     def _validate_feature_dimensions(self):
         if self._X is not None and self._features is not None:
@@ -594,6 +598,69 @@ class Rodin_Class:
     
         return self.features
 
+    def single_feature_lr(self, target_column, moderator=None, interaction=False):
+        """
+        Performs linear regression for each feature in the dataset against the target column, optionally includinga moderator
+        and interaction term. Updates the features DataFrame with regression p-values and adjusted p-values.
+    
+        Parameters:
+        - target_column (str): The name of the column in the 'samples' DataFrame to use as the dependent variable.
+        - moderator (str, optional): The name of the moderator variable column in the 'samples' DataFrame. If provided, includes this variable in the regression.
+        - interaction (bool, optional): If True and a moderator is provided, includes the interaction term between the feature and moderator in the model.
+
+        Raises:
+        - ValueError: If 'X' or 'samples' are None, if 'target_column' is not in 'samples', or if 'moderator' is specified but not found in 'samples'.
+    
+        Returns:
+        - pd.DataFrame: The updated features DataFrame with new columns for regression p-values and adjusted p-values.
+        """
+        
+        if self.X is None or self.samples is None:
+            raise ValueError("Both X and samples must be assigned before calling single_feature_lr.")
+    
+        if target_column not in self.samples.columns:
+            raise ValueError(f"Column '{target_column}' not found in samples.")
+    
+        if moderator and moderator not in self.samples.columns:
+            raise ValueError(f"Moderator column '{moderator}' not found in samples.")
+    
+        df = self.X.T.copy()
+        n_cols = df.shape[1]
+        p_values = []
+        features_list = []  # Renamed from 'list' to 'features_list' to avoid shadowing built-in names
+        dependent_var = self.samples[target_column]
+    
+        if moderator:
+            df['moderator_var'] = self.samples[moderator]
+            features_list = ['moderator_var']
+            if interaction:
+                df['interaction'] = self.samples[moderator] * self.samples[target_column]
+                features_list.append('interaction')
+                p_int = []
+    
+        for column in tqdm(df.columns[:n_cols]):
+            independent_vars = sm.add_constant(df[[column] + features_list])
+            model = sm.OLS(dependent_var, independent_vars).fit()
+            # Store the p-value of the feature
+            p_values.append(model.pvalues.iloc[1])
+            if interaction:
+                p_int.append(model.pvalues.iloc[3])
+                
+    
+        # Update self.features with p-values and adjusted p-values
+        self.features[f'p_value(lr) {target_column}'] = p_values
+        self.features[f'p_adj(lr) {target_column}'] = stats.false_discovery_control(ps=p_values, method='bh')
+        if interaction:
+            self.features[f'p_value(lr) {target_column}*{moderator}'] = p_int
+            self.features[f'p_adj(lr) {target_column}*{moderator}'] = stats.false_discovery_control(ps=p_int, method='bh')
+    
+        return self.features
+
+        
+    
+    
+    
+
     def random_forest_classifier(self, target_column, n_estimators=100, random_state=42):
         """
         Trains a Random Forest Classifier on the data and returns feature importances and model accuracy.
@@ -629,12 +696,13 @@ class Rodin_Class:
     
         return {"feature_importances": feature_importances, "accuracy": accuracy}
     
-    def fold_change(self, column_name):
+    def fold_change(self, column_name,reference=None):
         """
         Calculates log fold change for the data grouped by the specified column in the samples DataFrame.
     
         Parameters:
         - column_name (str): Column name in the samples DataFrame to group the data for fold change calculation.
+        - reference (str): Value to use as a reference for fold change. Defaults to None.
     
         Raises:
         - ValueError: If X or samples are None, or if the column_name is not in samples.
@@ -652,6 +720,9 @@ class Rodin_Class:
 
         # Extract unique classes and prepare the data
         unique_classes = self.samples[column_name].unique()
+        if reference:
+            unique_classes=np.concatenate(([reference], unique_classes[unique_classes != reference])) if reference in unique_classes else unique_classes
+          
         data_groups = [self.X[self.samples[self.samples[column_name] == i].iloc[:,0]].values for i in unique_classes]
         
         mean_group_0 = np.mean(data_groups[0], axis=1)
@@ -1056,6 +1127,7 @@ def create_object_csv(file_path_features, file_path_classes,feat_sep='\t',class_
     data = pd.read_csv(file_path_features,sep = feat_sep)
     # Extract features DataFrame (first two columns)
     features = data.iloc[:, :2]
+    features = features.astype('float')
 
     # Extract X matrix (all columns except the first two and the last annotation columns)
     # Converting to a sparse matrix if needed
