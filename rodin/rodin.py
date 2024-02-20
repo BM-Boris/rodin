@@ -629,7 +629,7 @@ class Rodin_Class:
         n_cols = df.shape[1]
         p_values = []
         features_list = []  # Renamed from 'list' to 'features_list' to avoid shadowing built-in names
-        dependent_var = self.samples[target_column]
+        dependent_var = self.samples[target_column].copy()
         dependent_var.index = self.samples.iloc[:,0]
     
         if moderator:
