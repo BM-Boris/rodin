@@ -631,17 +631,19 @@ class Rodin_Class:
         features_list = []  # Renamed from 'list' to 'features_list' to avoid shadowing built-in names
         dependent_var = self.samples[target_column].copy()
         dependent_var.index = self.samples.iloc[:,0]
-    
+        
         if moderator:
-            df['moderator_var'] = self.samples[moderator]
+            df['moderator_var'] = self.samples[moderator].values
             features_list = ['moderator_var']
-            if interaction:
-            # For each feature, calculate interaction term with moderator
-                for column in df.columns[:-1]:  # Exclude the last column which is 'moderator_var'
-                    df[f'{column}_interaction'] = df[column] * df['moderator_var']
-                    features_list.append(f'{column}_interaction')
-                    p_int = []
-    
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                if interaction:
+                # For each feature, calculate interaction term with moderator
+                    for column in df.columns[:-1]:  # Exclude the last column which is 'moderator_var'
+                        df[f'{column}_interaction'] = df[column] * df['moderator_var']
+                        features_list.append(f'{column}_interaction')
+                        p_int = []
+        
         for column in tqdm(df.columns[:n_cols]):
             cols_to_use = [column] + features_list if not interaction else [column, 'moderator_var', f'{column}_interaction']
             independent_vars = sm.add_constant(df[cols_to_use])
@@ -651,14 +653,14 @@ class Rodin_Class:
             if interaction:
                 p_int.append(model.pvalues.iloc[3])
                 
-    
+        
         # Update self.features with p-values and adjusted p-values
         self.features[f'p_value(lr) {target_column}'] = p_values
         self.features[f'p_adj(lr) {target_column}'] = stats.false_discovery_control(ps=p_values, method='bh')
         if interaction:
             self.features[f'p_value(lr) {target_column}*{moderator}'] = p_int
             self.features[f'p_adj(lr) {target_column}*{moderator}'] = stats.false_discovery_control(ps=p_int, method='bh')
-    
+        
         return self.features
 
         
