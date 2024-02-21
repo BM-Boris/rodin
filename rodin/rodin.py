@@ -23,6 +23,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import warnings
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import cross_val_predict
+from sklearn.metrics import classification_report
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 sns.set_theme()
 
 class Rodin_Class:
@@ -729,43 +733,93 @@ class Rodin_Class:
     
         return self.features
                     
-    
-    
 
-    def random_forest_classifier(self, target_column, n_estimators=100, random_state=42):
+    def rf_class(self, target_column, n_estimators=100, random_state=16,cv=4, **kwargs):
         """
-        Trains a Random Forest Classifier on the data and returns feature importances and model accuracy.
+        Trains a Random Forest Classifier using 4-fold cross-validation on the data, returns feature importances,
+        and print a classification report.
     
         Parameters:
         - target_column (str): Column name in the 'samples' DataFrame to use as the target variable.
         - n_estimators (int, optional): The number of trees in the forest. Defaults to 100.
-        - random_state (int, optional): Random state for reproducibility. Defaults to 42.
+        - random_state (int, optional): Random state for reproducibility. Defaults to 16.
+        - cv (int, optional): Number of folds for validation. Defaults to 4.
     
         Raises:
         - ValueError: If X or samples are None or if the target_column is not in samples.
     
         Returns:
-        - dict: Dictionary containing feature importances and model accuracy.
+        - dict: Dictionary containing feature importances and classification report DataFrame.
         """
         if self.X is None or self.samples is None:
-            raise ValueError("Both X and samples must be assigned before calling random_forest_classifier")
+            raise ValueError("Both X and samples must be assigned before calling rf_class.")
     
         if target_column not in self.samples.columns:
             raise ValueError(f"Column '{target_column}' not found in samples.")
     
         X = self.X.T
         y = self.samples[target_column]
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=random_state)
     
-        clf = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state)
-        clf.fit(X_train, y_train)
+        clf = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state, **kwargs)
     
-        y_pred = clf.predict(X_test)
-        accuracy = accuracy_score(y_test, y_pred)
+        # Perform cross-validated predictions
+        y_pred = cross_val_predict(clf, X, y, cv=cv)
     
+        # Generate classification report
+        report = classification_report(y, y_pred, output_dict=True)
+        print(pd.DataFrame(report).transpose())
+    
+        # Train a final model to get feature importances
+        clf.fit(X, y)
         feature_importances = clf.feature_importances_
+        self.features[f'imp(rf) {target_column}'] = feature_importances  # Update features DataFrame with importances
     
-        return {"feature_importances": feature_importances, "accuracy": accuracy}
+        return self.features
+        
+
+    def rf_regress(self, target_column, n_estimators=100, random_state=16, cv=4, **kwargs):
+        """
+        Trains a Random Forest Regressor using cross-validation on the data, returns feature importances,
+        and print regression metrics.
+    
+        Parameters:
+        - target_column (str): Column name in the 'samples' DataFrame to use as the target variable.
+        - n_estimators (int, optional): The number of trees in the forest. Defaults to 100.
+        - random_state (int, optional): Random state for reproducibility. Defaults to 16.
+        - cv (int, optional): Number of folds for cross-validation. Defaults to 4.
+    
+        Raises:
+        - ValueError: If X or samples are None or if the target_column is not in samples.
+    
+        Returns:
+        - dict: Dictionary containing feature importances and regression metrics.
+        """
+        if self.X is None or self.samples is None:
+            raise ValueError("Both X and samples must be assigned before calling rf_regress.")
+    
+        if target_column not in self.samples.columns:
+            raise ValueError(f"Column '{target_column}' not found in samples.")
+    
+        X = self.X.T
+        y = self.samples[target_column]
+    
+        clf = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state, **kwargs)
+    
+        y_pred = cross_val_predict(clf, X, y, cv=cv)
+    
+        mse = mean_squared_error(y, y_pred)
+        mae = mean_absolute_error(y, y_pred)
+        r2 = r2_score(y, y_pred)
+    
+        print("MSE: ",mse,"\nMAE: ",mae,"\nR2: ",r2)
+    
+        # Train a final model to get feature importances
+        clf.fit(X, y)
+        feature_importances = clf.feature_importances_
+        self.features[f'imp(rf) {target_column}'] = feature_importances  # Update features DataFrame with importances
+    
+        return self.features
+        
     
     def fold_change(self, column_name,reference=None):
         """
