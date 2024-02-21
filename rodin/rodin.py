@@ -722,7 +722,7 @@ class Rodin_Class:
 
         # Extract unique classes and prepare the data
         unique_classes = self.samples[column_name].unique()
-        if reference:
+        if reference!=None:
             unique_classes=np.concatenate(([reference], unique_classes[unique_classes != reference])) if reference in unique_classes else unique_classes
           
         data_groups = [self.X[self.samples[self.samples[column_name] == i].iloc[:,0]].values for i in unique_classes]
