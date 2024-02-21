@@ -598,7 +598,7 @@ class Rodin_Class:
     
         return self.features
 
-    def single_feature_lr(self, target_column, moderator=None, interaction=False):
+    def sf_lr(self, target_column, moderator=None, interaction=False):
         """
         Performs linear regression for each feature in the dataset against the target column, optionally includinga moderator
         and interaction term. Updates the features DataFrame with regression p-values and adjusted p-values.
@@ -663,8 +663,72 @@ class Rodin_Class:
         
         return self.features
 
-        
+
+    def sf_lg(self, target_column, moderator=None, interaction=False):
+        """
+        Performs logistic regression for each feature in the dataset against the target column, optionally including a moderator
+        and interaction term. Updates the features DataFrame with regression p-values and adjusted p-values.
     
+        Parameters:
+        - target_column (str): The name of the column in the 'samples' DataFrame to use as the dependent variable.
+        - moderator (str, optional): The name of the moderator variable column in the 'samples' DataFrame. If provided, includes this variable in the regression.
+        - interaction (bool, optional): If True and a moderator is provided, includes the interaction term between the feature and moderator in the model.
+        Raises:
+        - ValueError: If 'X' or 'samples' are None, if 'target_column' is not in 'samples', or if 'moderator' is specified but not found in 'samples'.
+    
+        Returns:
+        - pd.DataFrame: The updated features DataFrame with new columns for regression p-values and adjusted p-values.
+        """
+        
+        if self.X is None or self.samples is None:
+                raise ValueError("Both X and samples must be assigned before calling single_feature_lr.")
+        
+        if target_column not in self.samples.columns:
+            raise ValueError(f"Column '{target_column}' not found in samples.")
+    
+        if moderator and moderator not in self.samples.columns:
+            raise ValueError(f"Moderator column '{moderator}' not found in samples.")
+    
+        
+        df = self.X.T.copy()
+        n_cols = df.shape[1]
+        p_values = []
+        features_list = []  # Renamed from 'list' to 'features_list' to avoid shadowing built-in names
+        dependent_var = self.samples[target_column].copy()
+        dependent_var.index = self.samples.iloc[:,0]
+    
+        if moderator:
+            df['moderator_var'] = self.samples[moderator].values
+            features_list = ['moderator_var']
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                if interaction:
+                # For each feature, calculate interaction term with moderator
+                    for column in df.columns[:-1]:  # Exclude the last column which is 'moderator_var'
+                        df[f'{column}_interaction'] = df[column] * df['moderator_var']
+                        features_list.append(f'{column}_interaction')
+                        p_int = []
+    
+        for column in tqdm(df.columns[:n_cols]):
+            cols_to_use = [column] + features_list if not interaction else [column, 'moderator_var', f'{column}_interaction']
+            independent_vars = sm.add_constant(df[cols_to_use])
+            model = sm.Logit(dependent_var, independent_vars).fit(disp=0)
+            # Store the p-value of the feature
+            p_values.append(model.pvalues.iloc[1]) if moderator==None else p_values.append(model.pvalues.iloc[0])
+            if interaction:
+                p_int.append(model.pvalues.iloc[2])
+                
+                
+    
+        # Update self.features with p-values and adjusted p-values
+        self.features[f'p_value(lg) {target_column}'] = p_values
+        self.features[f'p_adj(lg) {target_column}'] = stats.false_discovery_control(ps=p_values, method='bh')
+        if interaction:
+            self.features[f'p_value(lg) {target_column}*{moderator}'] = p_int
+            self.features[f'p_adj(lg) {target_column}*{moderator}'] = stats.false_discovery_control(ps=p_int, method='bh')
+    
+        return self.features
+                    
     
     
 
