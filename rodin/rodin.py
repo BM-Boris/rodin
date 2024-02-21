@@ -636,12 +636,15 @@ class Rodin_Class:
             df['moderator_var'] = self.samples[moderator]
             features_list = ['moderator_var']
             if interaction:
-                df['interaction'] = self.samples[moderator] * self.samples[target_column]
-                features_list.append('interaction')
-                p_int = []
+            # For each feature, calculate interaction term with moderator
+                for column in df.columns[:-1]:  # Exclude the last column which is 'moderator_var'
+                    df[f'{column}_interaction'] = df[column] * df['moderator_var']
+                    features_list.append(f'{column}_interaction')
+                    p_int = []
     
         for column in tqdm(df.columns[:n_cols]):
-            independent_vars = sm.add_constant(df[[column] + features_list])
+            cols_to_use = [column] + features_list if not interaction else [column, 'moderator_var', f'{column}_interaction']
+            independent_vars = sm.add_constant(df[cols_to_use])
             model = sm.OLS(dependent_var, independent_vars).fit()
             # Store the p-value of the feature
             p_values.append(model.pvalues.iloc[1])
