@@ -6,6 +6,7 @@ _Rodin_ is a Python library specifically designed for the comprehensive processi
 
 - **Efficient Data Handling**: Streamlined manipulation and transformation of metabolomics data.
 - **Robust Statistical Analysis**: Includes ANOVA, t-tests, and more.
+- **Machine Learning Methods**: Random Forest, Logistic and Linear regressions.
 - **Advanced Dimensionality Reduction**: Techniques like PCA, t-SNE, UMAP.
 - **Interactive Data Visualization**: Tools for effective data visualization.
 - **Pathway Analysis**: Features for metabolic pathway analysis.
@@ -56,7 +57,18 @@ rodin_instance.ttest('age')
 # Run two-way anova test comparing groups based on 'age' and 'region'
 rodin_instance.twoway_anova(['age','region'])
 
-# Perform PCA with 2 principal components
+# Run multiple logistic regressions and linear regressions to get pvalues for each feature
+rodin_instance.sf_lg('sex')
+rodin_instance.sf_lr('age')
+
+#Run a random forest classifier and regressor to obtain the metrics of the trained model using k-fold validation, with assigned feature importance scores to each variable
+rodin_instance.rf_class('region')
+rodin_instance.rf_regress('age')
+
+#Slice the whole object using the pattern from pandas
+rodin_instance = rodin_instance[rodin_instance.features[rodin_instance.features['imp(rf) age']>0]]
+
+# Perform PCA with 2 principal components (umap and t-sne are available as well)
 rodin_instance.run_pca(n_components=2)
 
 # Plotting the PCA results
