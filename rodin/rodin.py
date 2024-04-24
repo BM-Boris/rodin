@@ -1224,6 +1224,7 @@ class Rodin_Class:
 
         df2 = pd.DataFrame(resultstr[1:], columns=resultstr[0]).drop(['overlap_features (id)','overlap_features (name)'],axis=1)
 
+        df['input_row'] = df['input_row']-1
         self.uns[pws_name] = df2
         self.uns[cmp_name] = df
         
