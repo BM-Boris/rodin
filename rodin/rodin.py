@@ -728,9 +728,9 @@ class Rodin_Class:
                         p_int.append(model.pvalues.iloc[2])
             except Exception as e:
                 print(f"Error processing column {column}: {e}")
-                p_values.append(None)
+                p_values.append(1)
                 if interaction:
-                    p_int.append(None)
+                    p_int.append(1)
                 
     
         # Update self.features with p-values and adjusted p-values
