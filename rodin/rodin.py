@@ -718,12 +718,17 @@ class Rodin_Class:
         for column in tqdm(df.columns[:n_cols]):
             cols_to_use = [column] + features_list if not interaction else [column, 'moderator_var', f'{column}_interaction']
             independent_vars = sm.add_constant(df[cols_to_use])
-            model = sm.Logit(dependent_var, independent_vars).fit(disp=0)
-            # Store the p-value of the feature
-            p_values.append(model.pvalues.iloc[1]) if moderator==None else p_values.append(model.pvalues.iloc[0])
-            if interaction:
-                p_int.append(model.pvalues.iloc[2])
-                
+            try:
+                model = sm.Logit(dependent_var, independent_vars).fit(disp=0)
+                # Store the p-value of the feature
+                p_values.append(model.pvalues.iloc[1]) if moderator==None else p_values.append(model.pvalues.iloc[0])
+                if interaction:
+                    p_int.append(model.pvalues.iloc[2])
+            except Exception as e:
+                print(f"Error processing column {column}: {e}")
+                p_values.append(None)
+                if interaction:
+                    p_int.append(None)
                 
     
         # Update self.features with p-values and adjusted p-values
