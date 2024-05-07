@@ -728,17 +728,17 @@ class Rodin_Class:
                         p_int.append(model.pvalues.iloc[2])
             except Exception as e:
                 print(f"Error processing column {column}: {e}")
-                p_values.append(0.999999)
+                p_values.append(np.nan)
                 if interaction:
-                    p_int.append(0.999999)
+                    p_int.append(np.nan)
                 
     
         # Update self.features with p-values and adjusted p-values
         self.features[f'p_value(lg) {target_column}'] = p_values
-        self.features[f'p_adj(lg) {target_column}'] = stats.false_discovery_control(ps=p_values, method='bh')
+        self.features[f'p_adj(lg) {target_column}'] = stats.false_discovery_control(ps=np.nan_to_num(p_values,nan=1.0), method='bh')
         if interaction:
             self.features[f'p_value(lg) {target_column}*{moderator}'] = p_int
-            self.features[f'p_adj(lg) {target_column}*{moderator}'] = stats.false_discovery_control(ps=p_int, method='bh')
+            self.features[f'p_adj(lg) {target_column}*{moderator}'] = stats.false_discovery_control(ps=np.nan_to_num(p_int,nan=1.0), method='bh')
     
         return self.features
                     
