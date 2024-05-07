@@ -1235,7 +1235,7 @@ class Rodin_Class:
 
 
 
-def create_object_csv(file_path_features, file_path_classes,feat_sep='\t',class_sep='\t'):
+def create_object_csv(file_path_features, file_path_classes,feat_sep='\t',class_sep='\t', feat_stat='mzrt'):
     """
     Creates a Rodin_Class object from CSV files for features and classes.
 
@@ -1244,7 +1244,8 @@ def create_object_csv(file_path_features, file_path_classes,feat_sep='\t',class_
     - file_path_classes (str): File path to the CSV file containing class information.
     - feat_sep (str, optional): Separator used in the features CSV file. Defaults to '\t'.
     - class_sep (str, optional): Separator used in the classes CSV file. Defaults to '\t'.
-
+    - feat_stat (str, optional): Feature status mode indicating the layout of the feature table. Use 'mzrt' if the first two columns are mass-to-charge ratio (mz) and retention time (rt), or 'ann' if one column is dedicated to annotations.
+   
     Returns:
     - Rodin_Class: A new instance of Rodin_Class populated with data from the provided CSV files.
     """
@@ -1252,12 +1253,15 @@ def create_object_csv(file_path_features, file_path_classes,feat_sep='\t',class_
     # Load the data
     data = pd.read_csv(file_path_features,sep = feat_sep)
     # Extract features DataFrame (first two columns)
-    features = data.iloc[:, :2]
-    features = features.astype('float')
-
-    # Extract X matrix (all columns except the first two and the last annotation columns)
-    # Converting to a sparse matrix if needed
-    X = data.iloc[:, 2:]
+    if(feat_stat=='ann'):
+        features = data.iloc[:, :1]
+        X = data.iloc[:, 1:]
+    else:
+        features = data.iloc[:, :2]
+        features = features.astype('float')
+        # Extract X matrix (all columns except the first two and the last annotation columns)
+        # Converting to a sparse matrix if needed
+        X = data.iloc[:, 2:]
 
     # Create a placeholder samples DataFrame
     # This can be replaced with actual sample annotations if available
