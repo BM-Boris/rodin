@@ -719,11 +719,13 @@ class Rodin_Class:
             cols_to_use = [column] + features_list if not interaction else [column, 'moderator_var', f'{column}_interaction']
             independent_vars = sm.add_constant(df[cols_to_use])
             try:
-                model = sm.Logit(dependent_var, independent_vars).fit(disp=0)
-                # Store the p-value of the feature
-                p_values.append(model.pvalues.iloc[1]) if moderator==None else p_values.append(model.pvalues.iloc[0])
-                if interaction:
-                    p_int.append(model.pvalues.iloc[2])
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    model = sm.Logit(dependent_var, independent_vars).fit(disp=0)
+                    # Store the p-value of the feature
+                    p_values.append(model.pvalues.iloc[1]) if moderator==None else p_values.append(model.pvalues.iloc[0])
+                    if interaction:
+                        p_int.append(model.pvalues.iloc[2])
             except Exception as e:
                 print(f"Error processing column {column}: {e}")
                 p_values.append(None)
