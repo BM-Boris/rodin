@@ -628,6 +628,9 @@ class Rodin_Class:
         if moderator and moderator not in self.samples.columns:
             raise ValueError(f"Moderator column '{moderator}' not found in samples.")
 
+        if moderator and self.samples[moderator].dtype == 'O':
+            raise ValueError(f"Moderator column '{moderator}' must be numerical.")
+
         
         df = self.X.T.copy()
         n_cols = df.shape[1]
@@ -692,6 +695,11 @@ class Rodin_Class:
     
         if moderator and moderator not in self.samples.columns:
             raise ValueError(f"Moderator column '{moderator}' not found in samples.")
+            
+        if moderator and self.samples[moderator].dtype == 'O':
+            raise ValueError(f"Moderator column '{moderator}' must be numerical.")
+
+        
     
         
         df = self.X.T.copy()
