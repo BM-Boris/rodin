@@ -699,6 +699,8 @@ class Rodin_Class:
         p_values = []
         features_list = []  # Renamed from 'list' to 'features_list' to avoid shadowing built-in names
         dependent_var = self.samples[target_column].copy()
+        if dependent_var.dtype == 'O':
+            dependent_var = LabelEncoder().fit_transform(dependent_var)
         dependent_var.index = self.samples.iloc[:,0]
     
         if moderator:
