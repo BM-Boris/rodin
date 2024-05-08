@@ -602,7 +602,7 @@ class Rodin_Class:
     
         return self.features
 
-    def sf_lr(self, target_column, moderator=None, interaction=False, regu=False, **kwargs):
+    def sf_lr(self, target_column, moderator=None, interaction=False, **kwargs):
         """
         Performs linear regression for each feature in the dataset against the target column, optionally includinga moderator
         and interaction term. Updates the features DataFrame with regression p-values and adjusted p-values.
@@ -611,8 +611,7 @@ class Rodin_Class:
         - target_column (str): The name of the column in the 'samples' DataFrame to use as the dependent variable.
         - moderator (str, optional): The name of the moderator variable column in the 'samples' DataFrame. If provided, includes this variable in the regression.
         - interaction (bool, optional): If True and a moderator is provided, includes the interaction term between the feature and moderator in the model.
-        - regu (bool, optional): Enables regularization for the regression model. If True, 'elastic_net' regularization is enabled and the `alpha` parameter should be specified to control the regularization strength. Default is False.
-        - **kwargs: Additional keyword arguments can be passed to the regression method, such as `alpha` to specify the regularization strength.
+        - **kwargs: Additional keyword arguments can be passed to the regression method.
 
 
         Raises:
@@ -657,10 +656,7 @@ class Rodin_Class:
         for column in tqdm(df.columns[:n_cols]):
             cols_to_use = [column] + features_list if not interaction else [column, 'moderator_var', f'{column}_interaction']
             independent_vars = sm.add_constant(df[cols_to_use])
-            if regu:
-                model = sm.OLS(dependent_var, independent_vars).fit_regularized(**kwargs)
-            else:
-                model = sm.OLS(dependent_var, independent_vars).fit(**kwargs)
+            model = sm.OLS(dependent_var, independent_vars).fit(**kwargs)
             # Store the p-value of the feature
             p_values.append(model.pvalues.iloc[1])
             if interaction:
