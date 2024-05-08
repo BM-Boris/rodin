@@ -602,7 +602,7 @@ class Rodin_Class:
     
         return self.features
 
-    def sf_lr(self, target_column, moderator=None, interaction=False):
+    def sf_lr(self, target_column, moderator=None, interaction=False, regu=False, **kwargs):
         """
         Performs linear regression for each feature in the dataset against the target column, optionally includinga moderator
         and interaction term. Updates the features DataFrame with regression p-values and adjusted p-values.
@@ -611,6 +611,9 @@ class Rodin_Class:
         - target_column (str): The name of the column in the 'samples' DataFrame to use as the dependent variable.
         - moderator (str, optional): The name of the moderator variable column in the 'samples' DataFrame. If provided, includes this variable in the regression.
         - interaction (bool, optional): If True and a moderator is provided, includes the interaction term between the feature and moderator in the model.
+        - regu (bool, optional): Enables regularization for the regression model. If True, 'elastic_net' regularization is enabled and the `alpha` parameter should be specified to control the regularization strength. Default is False.
+        - **kwargs: Additional keyword arguments can be passed to the regression method, such as `alpha` to specify the regularization strength.
+
 
         Raises:
         - ValueError: If 'X' or 'samples' are None, if 'target_column' is not in 'samples', or if 'moderator' is specified but not found in 'samples'.
@@ -654,7 +657,10 @@ class Rodin_Class:
         for column in tqdm(df.columns[:n_cols]):
             cols_to_use = [column] + features_list if not interaction else [column, 'moderator_var', f'{column}_interaction']
             independent_vars = sm.add_constant(df[cols_to_use])
-            model = sm.OLS(dependent_var, independent_vars).fit()
+            if regu:
+                model = sm.OLS(dependent_var, independent_vars).fit_regularized(**kwargs)
+            else:
+                model = sm.OLS(dependent_var, independent_vars).fit(**kwargs)
             # Store the p-value of the feature
             p_values.append(model.pvalues.iloc[1])
             if interaction:
@@ -671,7 +677,7 @@ class Rodin_Class:
         return self.features
 
 
-    def sf_lg(self, target_column, moderator=None, interaction=False):
+    def sf_lg(self, target_column, moderator=None, interaction=False, regu=False, **kwargs):
         """
         Performs logistic regression for each feature in the dataset against the target column, optionally including a moderator
         and interaction term. Updates the features DataFrame with regression p-values and adjusted p-values.
@@ -680,6 +686,9 @@ class Rodin_Class:
         - target_column (str): The name of the column in the 'samples' DataFrame to use as the dependent variable.
         - moderator (str, optional): The name of the moderator variable column in the 'samples' DataFrame. If provided, includes this variable in the regression.
         - interaction (bool, optional): If True and a moderator is provided, includes the interaction term between the feature and moderator in the model.
+        - regu (bool, optional): Enables regularization for the regression model. If True, L1 (Lasso) regularization is enabled and the `alpha` parameter should be specified to control the regularization strength. Default is False.
+        - **kwargs: Additional keyword arguments can be passed to the regression method, such as `alpha` to specify the regularization strength.
+
         Raises:
         - ValueError: If 'X' or 'samples' are None, if 'target_column' is not in 'samples', or if 'moderator' is specified but not found in 'samples'.
     
@@ -729,7 +738,10 @@ class Rodin_Class:
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    model = sm.Logit(dependent_var, independent_vars).fit(disp=0)
+                    if regu:
+                        model = sm.Logit(dependent_var, independent_vars).fit_regularized(disp=0,**kwargs)
+                    else:    
+                        model = sm.Logit(dependent_var, independent_vars).fit(disp=0,**kwargs)
                     # Store the p-value of the feature
                     p_values.append(model.pvalues.iloc[1]) if moderator==None else p_values.append(model.pvalues.iloc[0])
                     if interaction:
