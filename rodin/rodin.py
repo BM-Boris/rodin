@@ -24,6 +24,7 @@ from sklearn.metrics import accuracy_score
 import warnings
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import PolynomialFeatures
 from sklearn.model_selection import cross_val_predict
 from sklearn.metrics import classification_report
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
