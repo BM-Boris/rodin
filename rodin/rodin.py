@@ -602,7 +602,7 @@ class Rodin_Class:
     
         return self.features
 
-    def sf_lr(self, target_column, moderator=None, interaction=False, **kwargs):
+    def sf_lr(self, target_column, moderator=None, interaction=False,degree=1, **kwargs):
         """
         Performs linear regression for each feature in the dataset against the target column, optionally includinga moderator
         and interaction term. Updates the features DataFrame with regression p-values and adjusted p-values.
@@ -611,6 +611,7 @@ class Rodin_Class:
         - target_column (str): The name of the column in the 'samples' DataFrame to use as the dependent variable.
         - moderator (str, optional): The name of the moderator variable column in the 'samples' DataFrame. If provided, includes this variable in the regression.
         - interaction (bool, optional): If True and a moderator is provided, includes the interaction term between the feature and moderator in the model.
+        - degree (int, optional): The degree of polynomial terms to include in the regression. Defaults to 1.
         - **kwargs: Additional keyword arguments can be passed to the regression method.
 
 
@@ -636,11 +637,9 @@ class Rodin_Class:
         
         df = self.X.T.copy()
         n_cols = df.shape[1]
-        p_values = []
         features_list = []  # Renamed from 'list' to 'features_list' to avoid shadowing built-in names
         dependent_var = self.samples[target_column].copy()
         dependent_var.index = self.samples.iloc[:,0]
-        
         if moderator:
             df['moderator_var'] = self.samples[moderator].values
             features_list = ['moderator_var']
@@ -652,28 +651,49 @@ class Rodin_Class:
                         df[f'{column}_interaction'] = df[column] * df['moderator_var']
                         features_list.append(f'{column}_interaction')
                         p_int = []
-        
+    
+        poly = PolynomialFeatures(degree=degree, include_bias=False)
         for column in tqdm(df.columns[:n_cols]):
+    
             cols_to_use = [column] + features_list if not interaction else [column, 'moderator_var', f'{column}_interaction']
-            independent_vars = sm.add_constant(df[cols_to_use])
+    
+            if degree>1:
+                poly_features = poly.fit_transform(df[[column]])
+                poly_feature_names = [f'{column}'] + [f'{column}^{i}' for i in range(2, degree + 1)]
+                poly_df = pd.DataFrame(poly_features, columns=poly_feature_names, index=df.index).iloc[:,1:]
+                #print(poly_df)
+    
+                independent_vars = sm.add_constant(df[cols_to_use].join(poly_df))
+            else:
+                independent_vars = sm.add_constant(df[cols_to_use])
+            
             model = sm.OLS(dependent_var, independent_vars).fit(**kwargs)
             # Store the p-value of the feature
-            p_values.append(model.pvalues.iloc[1])
-            if interaction:
-                p_int.append(model.pvalues.iloc[3])
+    
+            if column==0:
+                pvals=model.pvalues.values
+            else:
+                pvals = np.vstack((pvals,model.pvalues.values))
+        pvals=np.transpose(pvals)
+                
+                
                 
         
-        # Update self.features with p-values and adjusted p-values
-        self.features[f'p_value(lr) {target_column}'] = p_values
-        self.features[f'p_adj(lr) {target_column}'] = stats.false_discovery_control(ps=p_values, method='bh')
+        # Update self.features with p-values and adjusted p-value
+        self.features[f'p_value(lr) {target_column}'] = pvals[1]
+        self.features[f'p_adj(lr) {target_column}'] = stats.false_discovery_control(ps=pvals[1], method='bh')
         if interaction:
-            self.features[f'p_value(lr) {target_column}*{moderator}'] = p_int
-            self.features[f'p_adj(lr) {target_column}*{moderator}'] = stats.false_discovery_control(ps=p_int, method='bh')
-        
+            self.features[f'p_value(lr) {target_column}*{moderator}'] = pvals[3]
+            self.features[f'p_adj(lr) {target_column}*{moderator}'] = stats.false_discovery_control(ps=pvals[3], method='bh')
+        if degree>1:
+            for i in range(2, degree + 1):
+                self.features[f'p_value(lr) {target_column}^{i}'] = pvals[-degree+i-1]
+                self.features[f'p_adj(lr) {target_column}^{i}'] = stats.false_discovery_control(ps=pvals[-degree+i-1], method='bh')        
+    
         return self.features
 
 
-    def sf_lg(self, target_column, moderator=None, interaction=False, regu=False, **kwargs):
+    def sf_lg(self, target_column, moderator=None, interaction=False, regu=False,degree=1, **kwargs):
         """
         Performs logistic regression for each feature in the dataset against the target column, optionally including a moderator
         and interaction term. Updates the features DataFrame with regression p-values and adjusted p-values.
@@ -683,6 +703,7 @@ class Rodin_Class:
         - moderator (str, optional): The name of the moderator variable column in the 'samples' DataFrame. If provided, includes this variable in the regression.
         - interaction (bool, optional): If True and a moderator is provided, includes the interaction term between the feature and moderator in the model.
         - regu (bool, optional): Enables regularization for the regression model. If True, L1 (Lasso) regularization is enabled and the `alpha` parameter should be specified to control the regularization strength. Default is False.
+        - degree (int, optional): The degree of polynomial terms to include in the regression. Defaults to 1.
         - **kwargs: Additional keyword arguments can be passed to the regression method, such as `alpha` to specify the regularization strength.
 
         Raises:
@@ -727,10 +748,18 @@ class Rodin_Class:
                         df[f'{column}_interaction'] = df[column] * df['moderator_var']
                         features_list.append(f'{column}_interaction')
                         p_int = []
-    
+                        
+        poly = PolynomialFeatures(degree=degree, include_bias=False)
         for column in tqdm(df.columns[:n_cols]):
             cols_to_use = [column] + features_list if not interaction else [column, 'moderator_var', f'{column}_interaction']
-            independent_vars = sm.add_constant(df[cols_to_use])
+            if degree>1:
+                poly_features = poly.fit_transform(df[[column]])
+                poly_feature_names = [f'{column}'] + [f'{column}^{i}' for i in range(2, degree + 1)]
+                poly_df = pd.DataFrame(poly_features, columns=poly_feature_names, index=df.index).iloc[:,1:]
+
+                independent_vars = sm.add_constant(df[cols_to_use].join(poly_df))
+            else:
+                independent_vars = sm.add_constant(df[cols_to_use])
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
@@ -739,24 +768,29 @@ class Rodin_Class:
                     else:    
                         model = sm.Logit(dependent_var, independent_vars).fit(disp=0,**kwargs)
                     # Store the p-value of the feature
-                    p_values.append(model.pvalues.iloc[1]) if moderator==None else p_values.append(model.pvalues.iloc[0])
-                    if interaction:
-                        p_int.append(model.pvalues.iloc[2])
+                    if column==0:
+                        pvals=model.pvalues.values
+                        n=len(pvals)
+                    else:
+                        pvals = np.vstack((pvals,model.pvalues.values))
             except Exception as e:
                 print(f"Error processing column {column}: {e}")
-                p_values.append(np.nan)
-                if interaction:
-                    p_int.append(np.nan)
+                pvals = np.vstack((pvals,np.full(n, np.nan)))
                 
-    
-        # Update self.features with p-values and adjusted p-values
-        self.features[f'p_value(lg) {target_column}'] = p_values
-        self.features[f'p_adj(lg) {target_column}'] = stats.false_discovery_control(ps=np.nan_to_num(p_values,nan=1.0), method='bh')
+        pvals=np.transpose(pvals)
+        # Update self.features with p-values and adjusted p-value
+        self.features[f'p_value(lg) {target_column}'] = pvals[1]
+        self.features[f'p_adj(lg) {target_column}'] = stats.false_discovery_control(ps=np.nan_to_num(pvals[1],nan=1.0), method='bh')
         if interaction:
-            self.features[f'p_value(lg) {target_column}*{moderator}'] = p_int
-            self.features[f'p_adj(lg) {target_column}*{moderator}'] = stats.false_discovery_control(ps=np.nan_to_num(p_int,nan=1.0), method='bh')
+            self.features[f'p_value(lg) {target_column}*{moderator}'] = pvals[3]
+            self.features[f'p_adj(lg) {target_column}*{moderator}'] = stats.false_discovery_control(ps=np.nan_to_num(pvals[3],nan=1.0), method='bh')
+        if degree>1:
+            for i in range(2, degree + 1):
+                self.features[f'p_value(lg) {target_column}^{i}'] = pvals[-degree+i-1]
+                self.features[f'p_adj(lg) {target_column}^{i}'] = stats.false_discovery_control(ps=np.nan_to_num(pvals[-degree+i-1],nan=1.0), method='bh')        
     
         return self.features
+
                     
 
     def rf_class(self, target_column, n_estimators=100, random_state=16,cv=4, **kwargs):
