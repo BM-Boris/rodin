@@ -1036,7 +1036,7 @@ class Rodin_Class:
         # Determine the number of subplots and set default grid dimensions if not provided
         n_plots = len(rows)
         if grid_dim is None:
-            grid_dim = (n_plots, 1)  # Default to one column with a row for each plot
+            grid_dim = (1, n_plots)  # Default to one column with a row for each plot
 
         nrows, ncols = grid_dim
         if figsize is None:
@@ -1115,7 +1115,7 @@ class Rodin_Class:
         # Determine the number of subplots and set default grid dimensions if not provided
         n_plots = len(rows)
         if grid_dim is None:
-            grid_dim = (n_plots, 1)  # Default to one column with a row for each plot
+            grid_dim = (1, n_plots)  # Default to one column with a row for each plot
 
         nrows, ncols = grid_dim
         if figsize is None:
@@ -1194,7 +1194,7 @@ class Rodin_Class:
         # Determine the number of subplots and set default grid dimensions if not provided
         n_plots = len(rows)
         if grid_dim is None:
-            grid_dim = (n_plots, 1)  # Default to one column with a row for each plot
+            grid_dim = (1, n_plots)  # Default to one column with a row for each plot
 
         nrows, ncols = grid_dim
         if figsize is None:
