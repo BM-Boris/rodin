@@ -1149,6 +1149,84 @@ class Rodin_Class:
         
         return fig
 
+    def regplot(self, rows=None, eids=None, column=None, significant=0.05, grid_dim=None, figsize=None, title="",zeros=True,x_limit=None, **regplot_params):
+        """
+        Generates regression plots for specified rows or EIDs with an option to filter by significance.
+
+        This function creates a series of regression plots based on the data in the class. It can plot specified rows,
+        or rows corresponding to a list of EIDs (Experiment IDs). When using EIDs, it can further filter rows
+        based on a significance threshold applied to p-values.
+
+        Parameters:
+        rows (list, optional): A list of rows to be plotted. If 'None', rows will be determined based on 'eids'.
+        eids (list, optional): A list of EIDs for which corresponding rows are to be plotted. If specified, 
+                               only rows with these EIDs and p-values <= 'significant' will be considered.
+        column (str): Column name in 'self.samples' to be used for x in the plots.
+        significant (float, optional): A significance level (p-value threshold) to filter rows based on 'eids'. 
+                                       Default is 0.05.
+        grid_dim (tuple, optional): Dimensions for the grid of subplots (rows, columns). By default, it creates 
+                                    a single column of plots.
+        figsize (tuple, optional): Size of the figure (width, height). Auto-adjusted based on the number of plots 
+                                   if not provided.
+        title (str, optional): Overall title for the plot.
+        **regplot_params: Additional keyword arguments to be passed to seaborn's violinplot function.
+
+        Returns:
+        fig: The matplotlib figure object containing the generated regression plots.
+        """
+        
+        # Handle 'eids' parameter and extract corresponding rows
+        if eids is not None:
+            if isinstance(eids, int):
+                eids = [eids]
+            # Filter for rows with p_value less than or equal to the significant threshold
+            rows = self.uns['compounds'][(self.uns['compounds']['EID'].isin(eids)) & (self.uns['compounds']['p_value'] <= significant)].input_row.values
+        
+        # If rows is None or empty after handling eids, return without plotting
+        if rows is None or len(rows) == 0:
+            print("No rows to plot.")
+            return
+
+        # Ensure 'rows' is a list
+        if isinstance(rows, int):
+            rows = [rows]
+
+        # Determine the number of subplots and set default grid dimensions if not provided
+        n_plots = len(rows)
+        if grid_dim is None:
+            grid_dim = (n_plots, 1)  # Default to one column with a row for each plot
+
+        nrows, ncols = grid_dim
+        if figsize is None:
+            figsize = (4 * ncols, 4 * nrows)
+
+        # Create a figure and a grid of subplots
+        fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
+        if nrows * ncols > 1:
+            axes = np.array(axes).reshape(-1)  # Flatten axes array for easy iteration
+        else:
+            axes = [axes]  # Ensure axes is iterable for a single subplot
+
+        # Iterate over the specified rows and plot
+        for i, row in enumerate(rows):
+            if i < len(axes):  # Check to avoid IndexError
+                ax = axes[i]
+                df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
+
+                sns.regplot(y=df, x=self.samples[column], ax=ax, **regplot_params)
+
+                # Retrieve and set the corresponding EID as the subplot title
+                eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
+                ax.set_title(f"EID: {eid}")
+                ax.set_xlim(x_limit)
+
+        # Set the overall title and show plot
+        plt.tight_layout()
+        plt.suptitle(title)
+        plt.close(fig)
+        
+        return fig
+
     def save(self,path):
         """
         Saves the current Rodin_Class object to a file using pickle.
