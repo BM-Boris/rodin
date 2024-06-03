@@ -991,7 +991,7 @@ class Rodin_Class:
 
         return fig
 
-    def boxplot(self, rows=None, hue=None, eids=None, significant=0.05, grid_dim=None, figsize=None, title="", **boxplot_params):
+    def boxplot(self, eids=None, hue=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", **boxplot_params):
         """
         Generates box plots for specified rows or EIDs with an option to filter by significance.
 
@@ -1070,7 +1070,7 @@ class Rodin_Class:
 
         return fig
 
-    def violinplot(self, rows=None, hue=None, eids=None, significant=0.05, grid_dim=None, figsize=None, title="", **violinplot_params):
+    def violinplot(self, eids=None, hue=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", **violinplot_params):
         """
         Generates violin plots for specified rows or EIDs with an option to filter by significance.
 
@@ -1149,7 +1149,7 @@ class Rodin_Class:
         
         return fig
 
-    def regplot(self, rows=None, eids=None, column=None, significant=0.05, grid_dim=None, figsize=None, title="",zeros=True,x_limit=None, **regplot_params):
+    def regplot(self, eids=None, column=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="",zeros=True,x_limit=None, **regplot_params):
         """
         Generates regression plots for specified rows or EIDs with an option to filter by significance.
 
