@@ -1040,7 +1040,7 @@ class Rodin_Class:
 
         nrows, ncols = grid_dim
         if figsize is None:
-            figsize = (4 * ncols, 4 * nrows)
+            figsize = (5 * ncols, 5 * nrows)
 
         # Create a figure and a grid of subplots
         fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
@@ -1119,7 +1119,7 @@ class Rodin_Class:
 
         nrows, ncols = grid_dim
         if figsize is None:
-            figsize = (4 * ncols, 4 * nrows)
+            figsize = (5 * ncols, 5 * nrows)
 
         # Create a figure and a grid of subplots
         fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
@@ -1198,7 +1198,7 @@ class Rodin_Class:
 
         nrows, ncols = grid_dim
         if figsize is None:
-            figsize = (4 * ncols, 4 * nrows)
+            figsize = (5 * ncols, 5 * nrows)
 
         # Create a figure and a grid of subplots
         fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
