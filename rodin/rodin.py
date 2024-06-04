@@ -991,7 +991,7 @@ class Rodin_Class:
 
         return fig
 
-    def boxplot(self, eids=None, hue=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", **boxplot_params):
+    def boxplot(self, eids=None, hue=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="",zeros=True, **boxplot_params):
         """
         Generates box plots for specified rows or EIDs with an option to filter by significance.
 
@@ -1053,7 +1053,7 @@ class Rodin_Class:
         for i, row in enumerate(rows):
             if i < len(axes):  # Check to avoid IndexError
                 ax = axes[i]
-                df = self.X.loc[row]
+                df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
 
                 if hue and hue in self.samples.columns:
                     sns.boxplot(y=df, x=self.samples[hue].values, ax=ax, **boxplot_params)
@@ -1070,7 +1070,7 @@ class Rodin_Class:
 
         return fig
 
-    def violinplot(self, eids=None, hue=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", **violinplot_params):
+    def violinplot(self, eids=None, hue=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="",zeros=True, **violinplot_params):
         """
         Generates violin plots for specified rows or EIDs with an option to filter by significance.
 
@@ -1132,7 +1132,7 @@ class Rodin_Class:
         for i, row in enumerate(rows):
             if i < len(axes):  # Check to avoid IndexError
                 ax = axes[i]
-                df = self.X.loc[row]
+                df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
 
                 if hue and hue in self.samples.columns:
                     sns.violinplot(y=df, x=self.samples[hue].values, ax=ax, **violinplot_params)
