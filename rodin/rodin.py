@@ -356,14 +356,16 @@ class Rodin_Class:
         
         return ax
 
-    def transform(self, thresh=0.5, norm='q'):
+    def transform(self, thresh=0.5, norm='q',scale=True, log=True):
         """
-        Transforms the X matrix by filling missing values, applying threshold filtering, normalization, and log transformation.
+        Transforms the X matrix by filling missing values, applying threshold filtering, normalization, scaling, and log transformation and removes features with constant values across all samples and duplicates.
     
         Parameters:
         - thresh (float, optional): Threshold for missing values. Defaults to 0.5.
-        - norm (str, optional): Normalization method, either 'q' for Quantile or 't' for Total Intensity. Defaults to 'q'.
-    
+        - norm (str, optional): Normalization method, either 'q' for Quantile or 't' for Total Intensity, or None to skip normalization. Defaults to 'q'.
+        - scale (bool, optional): Whether to scale rows to unit variance. Defaults to True.
+        - log (bool, optional): Whether to apply log transformation. Defaults to True.
+
         Raises:
         - ValueError: If X is None or norm is not a valid option.
     
@@ -383,21 +385,30 @@ class Rodin_Class:
         df_features_processed = df_features_processed.loc[row_mask, col_mask]
 
         # Normalization
-        if norm == 'q':
-            # Quantile normalization
-            df_sorted = np.sort(df_features_processed, axis=0)
-            df_mean = df_sorted.mean(axis=1)
-            df_ranked = df_features_processed.rank(method="min").astype(int) - 1
-            df_norm = pd.DataFrame(df_mean[df_ranked.values], index=df_features_processed.index,
-                                   columns=df_features_processed.columns)
-        elif norm == 't':
-            # Total intensity normalization
-            df_norm = df_features_processed.div(df_features_processed.sum(axis=0), axis=1) * 1e5
+        if norm is not None:
+            if norm == 'q':
+                # Quantile normalization
+                df_sorted = np.sort(df_features_processed, axis=0)
+                df_mean = df_sorted.mean(axis=1)
+                df_ranked = df_features_processed.rank(method="min").astype(int) - 1
+                df_norm = pd.DataFrame(df_mean[df_ranked.values], index=df_features_processed.index,
+                                       columns=df_features_processed.columns)
+            elif norm == 't':
+                # Total intensity normalization
+                df_norm = df_features_processed.div(df_features_processed.sum(axis=0), axis=1) * 1e5
+            else:
+                raise ValueError('Provide a valid normalization method: "q" for Quantile Normalization or "t" for Total Intensity Normalization')
         else:
-            raise ValueError('Provide a valid normalization method: "q" for Quantile Normalization or "t" for Total Intensity Normalization')
-
+            df_norm = df_features_processed
+            
+        if scale:
+            row_stds = df_norm.std(axis=1)
+            row_stds[row_stds == 0] = 1
+            df_norm = df_norm.div(row_stds, axis=0)
+        
         # Log transformation
-        df_norm = np.log2(df_norm + 1)
+        if log:
+            df_norm = np.log2(df_norm + 1)
 
         # Remove rows with constant values across all samples and duplicates
         df_features_processed = df_norm.loc[df_norm.nunique(axis=1) > 1]
