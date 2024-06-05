@@ -1002,163 +1002,331 @@ class Rodin_Class:
 
         return fig
 
-    def boxplot(self, eids=None, hue=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="",zeros=True, **boxplot_params):
+    def boxplot(self, hue, pathways=None, eids=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", zeros=True, cutoff_path=0.05, **boxplot_params):
         """
-        Generates box plots for specified rows or EIDs with an option to filter by significance.
-
-        This function creates a series of box plots based on the data in the class. It can plot specified rows,
-        or rows corresponding to a list of EIDs (Experiment IDs). When using EIDs, it can further filter rows
-        based on a significance threshold applied to p-values.
-
+        Generates box plots for specified pathways, rows, or EIDs with an option to filter by significance.
+    
+        This function creates separate figures for each pathway, plotting all EIDs associated with that pathway.
+        The function can also plot specified rows or rows corresponding to a list of EIDs.
+    
         Parameters:
-        rows (list, optional): A list of rows to be plotted. If 'None', rows will be determined based on 'eids'.
-        hue (str, optional): Column name in 'self.samples' to be used for hue in the plots.
-        eids (list, optional): A list of EIDs for which corresponding rows are to be plotted. If specified, 
-                               only rows with these EIDs and p-values <= 'significant' will be considered.
-        significant (float, optional): A significance level (p-value threshold) to filter rows based on 'eids'. 
-                                       Default is 0.05.
-        grid_dim (tuple, optional): Dimensions for the grid of subplots (rows, columns). By default, it creates 
-                                    a single column of plots.
-        figsize (tuple, optional): Size of the figure (width, height). Auto-adjusted based on the number of plots 
-                                   if not provided.
+        hue (str): Column name in 'self.samples' to be used for hue in the plots.
+        pathways (list of str or str, optional): Specific pathway(s) to include. If specified, plots all EIDs associated with these pathways.
+        eids (list, optional): A list of EIDs for which corresponding rows are to be plotted. If specified, only rows with these EIDs and p-values <= 'significant' will be considered.
+        rows (list, optional): A list of rows to be plotted. If 'None', rows will be determined based on 'eids' or 'pathway'.
+        significant (float, optional): A significance level (p-value threshold) to filter rows based on 'eids'. Default is 0.05.
+        grid_dim (tuple, optional): Dimensions for the grid of subplots (rows, columns). By default, it creates a single column of plots.
+        figsize (tuple, optional): Size of the figure (width, height). Auto-adjusted based on the number of plots if not provided.
         title (str, optional): Overall title for the plot.
-        **boxplot_params: Additional keyword arguments to be passed to seaborn's boxplot function.
-
-        Returns:
-        fig: The matplotlib figure object containing the generated box plots.
-
-        """
-        
-        if eids is not None:
-            if isinstance(eids, int):
-                eids = [eids]
-            # Filter for rows with p_value less than or equal to the significant threshold
-            rows = self.uns['compounds'][(self.uns['compounds']['EID'].isin(eids)) & (self.uns['compounds']['p_value'] <= significant)].input_row.values
-        
-        # If rows is None or empty after handling eids, return without plotting
-        if rows is None or len(rows) == 0:
-            print("No rows to plot.")
-            return
-
-        # Ensure 'rows' is a list
-        if isinstance(rows, int):
-            rows = [rows]
-
-        # Determine the number of subplots and set default grid dimensions if not provided
-        n_plots = len(rows)
-        if grid_dim is None:
-            grid_dim = (1, n_plots)  # Default to one column with a row for each plot
-
-        nrows, ncols = grid_dim
-        if figsize is None:
-            figsize = (5 * ncols, 5 * nrows)
-
-        # Create a figure and a grid of subplots
-        fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
-        if nrows * ncols > 1:
-            axes = np.array(axes).reshape(-1)  # Flatten axes array for easy iteration
-        else:
-            axes = [axes]  # Ensure axes is iterable for a single subplot
-
-        # Iterate over the specified rows and plot
-        for i, row in enumerate(rows):
-            if i < len(axes):  # Check to avoid IndexError
-                ax = axes[i]
-                df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
-
-                if hue and hue in self.samples.columns:
-                    sns.boxplot(y=df, x=self.samples[hue].values, ax=ax, **boxplot_params)
-                else:
-                    sns.boxplot(y=df, ax=ax, **boxplot_params)
-
-                # Retrieve and set the corresponding EID as the subplot title
-                eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
-                ax.set_title(f"EID: {eid}")
-
-        # Set the overall title and show plot
-        plt.suptitle(title)
-        plt.close(fig)
-
-        return fig
-
-    def violinplot(self, eids=None, hue=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="",zeros=True, **violinplot_params):
-        """
-        Generates violin plots for specified rows or EIDs with an option to filter by significance.
-
-        This function creates a series of box plots based on the data in the class. It can plot specified rows,
-        or rows corresponding to a list of EIDs (Experiment IDs). When using EIDs, it can further filter rows
-        based on a significance threshold applied to p-values.
-
-        Parameters:
-        rows (list, optional): A list of rows to be plotted. If 'None', rows will be determined based on 'eids'.
-        hue (str, optional): Column name in 'self.samples' to be used for hue in the plots.
-        eids (list, optional): A list of EIDs for which corresponding rows are to be plotted. If specified, 
-                               only rows with these EIDs and p-values <= 'significant' will be considered.
-        significant (float, optional): A significance level (p-value threshold) to filter rows based on 'eids'. 
-                                       Default is 0.05.
-        grid_dim (tuple, optional): Dimensions for the grid of subplots (rows, columns). By default, it creates 
-                                    a single column of plots.
-        figsize (tuple, optional): Size of the figure (width, height). Auto-adjusted based on the number of plots 
-                                   if not provided.
-        title (str, optional): Overall title for the plot.
+        zeros (bool, optional): Whether to include zeros in the plot. Defaults to True.
+        cutoff_path (float, optional): Threshold for filtering pathways based on p-value. Defaults to 0.05.
         **boxplot_params: Additional keyword arguments to be passed to seaborn's violinplot function.
-
+    
         Returns:
-        fig: The matplotlib figure object containing the generated violin plots.
+        figs (list): A list of matplotlib figure objects containing the generated box plots.
         """
         
-        # Handle 'eids' parameter and extract corresponding rows
-        if eids is not None:
-            if isinstance(eids, int):
-                eids = [eids]
-            # Filter for rows with p_value less than or equal to the significant threshold
-            rows = self.uns['compounds'][(self.uns['compounds']['EID'].isin(eids)) & (self.uns['compounds']['p_value'] <= significant)].input_row.values
+        figs = []
         
-        # If rows is None or empty after handling eids, return without plotting
-        if rows is None or len(rows) == 0:
-            print("No rows to plot.")
-            return
-
-        # Ensure 'rows' is a list
-        if isinstance(rows, int):
-            rows = [rows]
-
-        # Determine the number of subplots and set default grid dimensions if not provided
-        n_plots = len(rows)
-        if grid_dim is None:
-            grid_dim = (1, n_plots)  # Default to one column with a row for each plot
-
-        nrows, ncols = grid_dim
-        if figsize is None:
-            figsize = (5 * ncols, 5 * nrows)
-
-        # Create a figure and a grid of subplots
-        fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
-        if nrows * ncols > 1:
-            axes = np.array(axes).reshape(-1)  # Flatten axes array for easy iteration
-        else:
-            axes = [axes]  # Ensure axes is iterable for a single subplot
-
-        # Iterate over the specified rows and plot
-        for i, row in enumerate(rows):
-            if i < len(axes):  # Check to avoid IndexError
-                ax = axes[i]
-                df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
-
-                if hue and hue in self.samples.columns:
-                    sns.violinplot(y=df, x=self.samples[hue].values, ax=ax, **violinplot_params)
+        # Handle the case where pathways, eids, and rows are all None
+        if pathways is None and eids is None and rows is None:
+            compounds_df = self.show_compounds(cutoff_path=cutoff_path, cutoff_eids=significant)
+            pathways = compounds_df.index.get_level_values('pathway').unique().tolist()
+    
+        # If pathways is not None, handle it
+        if pathways is not None:
+            if isinstance(pathways, str):
+                pathways = [pathways]
+    
+            compounds_df = self.show_compounds(paths=pathways, cutoff_path=cutoff_path, cutoff_eids=significant)
+            max_input_rows = compounds_df.groupby(level='pathway')['input_row'].nunique().max()
+            
+            for pathway in pathways:
+                pathway_compounds = compounds_df.xs(pathway, level='pathway')
+                eids = pathway_compounds.index.get_level_values('compound_id').unique().tolist()
+                
+                # Filter for rows with p_value less than or equal to the significant threshold
+                rows = self.uns['compounds'][(self.uns['compounds']['EID'].isin(eids)) & (self.uns['compounds']['p_value'] <= significant)].input_row.values
+                
+                # If no rows are found, skip this pathway
+                if len(rows) == 0:
+                    print(f"No significant compounds found for pathway: {pathway}")
+                    continue
+    
+                # Ensure rows is a list
+                if isinstance(rows, int):
+                    rows = [rows]
+    
+                rows = np.unique(rows)
+    
+                # Determine the number of subplots and set default grid dimensions if not provided
+                n_plots = len(rows)
+                if grid_dim is None:
+                    grid_dim = (1, max_input_rows)  # Default to one column with a row for each plot
+    
+                nrows, ncols = grid_dim
+                if figsize is None:
+                    figsize = (5 * ncols, 5 * nrows)
+    
+                # Create a figure and a grid of subplots
+                fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
+                if nrows * ncols > 1:
+                    axes = np.array(axes).reshape(-1)  # Flatten axes array for easy iteration
                 else:
-                    sns.violinplot(y=df, ax=ax, **violinplot_params)
+                    axes = [axes]  # Ensure axes is iterable for a single subplot
+    
+                # Iterate over the specified rows and plot
+                for i, row in enumerate(rows):
+                    if i < len(axes):  # Check to avoid IndexError
+                        ax = axes[i]
+                        df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
+    
+                        if hue and hue in self.samples.columns:
+                            sns.boxplot(y=df, x=self.samples[hue].values, ax=ax, **boxplot_params)
+                        else:
+                            sns.boxplot(y=df, ax=ax, **boxplot_params)
+    
+                        # Retrieve and set the corresponding EID as the subplot title
+                        eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
+                        ax.set_title(f"EID: {eid}")
+    
+                # Hide any unused subplots
+                for j in range(i+1, len(axes)):
+                    axes[j].axis('off')
+    
+                # Set the overall title and show plot
+                fig.tight_layout()
+                fig.suptitle(f"{pathway}")
+                fig.subplots_adjust(top=0.88)  # Adjust subplots to fit the main title
+                plt.show()
+                plt.close(fig)
+    
+                # Append the figure to the list
+                figs.append(fig)
+        else:
+            # Handle 'eids' parameter and extract corresponding rows
+            if eids is not None:
+                if isinstance(eids, int):
+                    eids = [eids]
+                # Filter for rows with p_value less than or equal to the significant threshold
+                rows = self.uns['compounds'][(self.uns['compounds']['EID'].isin(eids)) & (self.uns['compounds']['p_value'] <= significant)].input_row.values
+            
+            # If rows is None or empty after handling eids or pathway, return without plotting
+            if rows is None or len(rows) == 0:
+                print("No rows to plot.")
+                return []
+    
+            # Ensure 'rows' is a list
+            if isinstance(rows, int):
+                rows = [rows]
+    
+            rows = np.unique(rows)
+    
+            # Determine the number of subplots and set default grid dimensions if not provided
+            n_plots = len(rows)
+            if grid_dim is None:
+                grid_dim = (1, n_plots)  # Default to one column with a row for each plot
+    
+            nrows, ncols = grid_dim
+            if figsize is None:
+                figsize = (5 * ncols, 5 * nrows)
+    
+            # Create a figure and a grid of subplots
+            fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
+            if nrows * ncols > 1:
+                axes = np.array(axes).reshape(-1)  # Flatten axes array for easy iteration
+            else:
+                axes = [axes]  # Ensure axes is iterable for a single subplot
+    
+            # Iterate over the specified rows and plot
+            for i, row in enumerate(rows):
+                if i < len(axes):  # Check to avoid IndexError
+                    ax = axes[i]
+                    df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
+    
+                    if hue and hue in self.samples.columns:
+                        sns.boxplot(y=df, x=self.samples[hue].values, ax=ax, **boxplot_params)
+                    else:
+                        sns.boxplot(y=df, ax=ax, **boxplot_params)
+    
+                    # Retrieve and set the corresponding EID as the subplot title
+                    eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
+                    ax.set_title(f"EID: {eid}")
+    
+            # Set the overall title and show plot
+            plt.tight_layout()
+            plt.suptitle(title)
+            plt.subplots_adjust(top=0.88) # Adjust subplots to fit the main title
+            plt.close(fig)
+    
+            figs=fig
+    
+        return figs
 
-                # Retrieve and set the corresponding EID as the subplot title
-                eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
-                ax.set_title(f"EID: {eid}")
 
-        # Set the overall title and show plot
-        plt.suptitle(title)
-        plt.close(fig)
+
+    def violinplot(self, hue, pathways=None, eids=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", zeros=True, cutoff_path=0.05, **violinplot_params):
+        """
+        Generates violin plots for specified pathways, rows, or EIDs with an option to filter by significance.
+    
+        This function creates separate figures for each pathway, plotting all EIDs associated with that pathway.
+        The function can also plot specified rows or rows corresponding to a list of EIDs.
+    
+        Parameters:
+        hue (str): Column name in 'self.samples' to be used for hue in the plots.
+        pathways (list of str or str, optional): Specific pathway(s) to include. If specified, plots all EIDs associated with these pathways.
+        eids (list, optional): A list of EIDs for which corresponding rows are to be plotted. If specified, only rows with these EIDs and p-values <= 'significant' will be considered.
+        rows (list, optional): A list of rows to be plotted. If 'None', rows will be determined based on 'eids' or 'pathway'.
+        significant (float, optional): A significance level (p-value threshold) to filter rows based on 'eids'. Default is 0.05.
+        grid_dim (tuple, optional): Dimensions for the grid of subplots (rows, columns). By default, it creates a single column of plots.
+        figsize (tuple, optional): Size of the figure (width, height). Auto-adjusted based on the number of plots if not provided.
+        title (str, optional): Overall title for the plot.
+        zeros (bool, optional): Whether to include zeros in the plot. Defaults to True.
+        cutoff_path (float, optional): Threshold for filtering pathways based on p-value. Defaults to 0.05.
+        **violinplot_params: Additional keyword arguments to be passed to seaborn's violinplot function.
+    
+        Returns:
+        figs (list): A list of matplotlib figure objects containing the generated violin plots.
+        """
         
-        return fig
+        figs = []
+        
+        # Handle the case where pathways, eids, and rows are all None
+        if pathways is None and eids is None and rows is None:
+            compounds_df = self.show_compounds(cutoff_path=cutoff_path, cutoff_eids=significant)
+            pathways = compounds_df.index.get_level_values('pathway').unique().tolist()
+    
+        # If pathways is not None, handle it
+        if pathways is not None:
+            if isinstance(pathways, str):
+                pathways = [pathways]
+    
+            compounds_df = self.show_compounds(paths=pathways, cutoff_path=cutoff_path, cutoff_eids=significant)
+            max_input_rows = compounds_df.groupby(level='pathway')['input_row'].nunique().max()
+            
+            for pathway in pathways:
+                pathway_compounds = compounds_df.xs(pathway, level='pathway')
+                eids = pathway_compounds.index.get_level_values('compound_id').unique().tolist()
+                
+                # Filter for rows with p_value less than or equal to the significant threshold
+                rows = self.uns['compounds'][(self.uns['compounds']['EID'].isin(eids)) & (self.uns['compounds']['p_value'] <= significant)].input_row.values
+                
+                # If no rows are found, skip this pathway
+                if len(rows) == 0:
+                    print(f"No significant compounds found for pathway: {pathway}")
+                    continue
+    
+                # Ensure rows is a list
+                if isinstance(rows, int):
+                    rows = [rows]
+    
+                rows = np.unique(rows)
+    
+                # Determine the number of subplots and set default grid dimensions if not provided
+                n_plots = len(rows)
+                if grid_dim is None:
+                    grid_dim = (1, max_input_rows)  # Default to one column with a row for each plot
+    
+                nrows, ncols = grid_dim
+                if figsize is None:
+                    figsize = (5 * ncols, 5 * nrows)
+    
+                # Create a figure and a grid of subplots
+                fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
+                if nrows * ncols > 1:
+                    axes = np.array(axes).reshape(-1)  # Flatten axes array for easy iteration
+                else:
+                    axes = [axes]  # Ensure axes is iterable for a single subplot
+    
+                # Iterate over the specified rows and plot
+                for i, row in enumerate(rows):
+                    if i < len(axes):  # Check to avoid IndexError
+                        ax = axes[i]
+                        df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
+    
+                        if hue and hue in self.samples.columns:
+                            sns.violinplot(y=df, x=self.samples[hue].values, ax=ax, **violinplot_params)
+                        else:
+                            sns.violinplot(y=df, ax=ax, **violinplot_params)
+    
+                        # Retrieve and set the corresponding EID as the subplot title
+                        eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
+                        ax.set_title(f"EID: {eid}")
+    
+                # Hide any unused subplots
+                for j in range(i+1, len(axes)):
+                    axes[j].axis('off')
+    
+                # Set the overall title and show plot
+                fig.tight_layout()
+                fig.suptitle(f"{pathway}")
+                fig.subplots_adjust(top=0.88)  # Adjust subplots to fit the main title
+                plt.show()
+                plt.close(fig)
+    
+                # Append the figure to the list
+                figs.append(fig)
+        else:
+            # Handle 'eids' parameter and extract corresponding rows
+            if eids is not None:
+                if isinstance(eids, int):
+                    eids = [eids]
+                # Filter for rows with p_value less than or equal to the significant threshold
+                rows = self.uns['compounds'][(self.uns['compounds']['EID'].isin(eids)) & (self.uns['compounds']['p_value'] <= significant)].input_row.values
+            
+            # If rows is None or empty after handling eids or pathway, return without plotting
+            if rows is None or len(rows) == 0:
+                print("No rows to plot.")
+                return []
+    
+            # Ensure 'rows' is a list
+            if isinstance(rows, int):
+                rows = [rows]
+    
+            rows = np.unique(rows)
+    
+            # Determine the number of subplots and set default grid dimensions if not provided
+            n_plots = len(rows)
+            if grid_dim is None:
+                grid_dim = (1, n_plots)  # Default to one column with a row for each plot
+    
+            nrows, ncols = grid_dim
+            if figsize is None:
+                figsize = (5 * ncols, 5 * nrows)
+    
+            # Create a figure and a grid of subplots
+            fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
+            if nrows * ncols > 1:
+                axes = np.array(axes).reshape(-1)  # Flatten axes array for easy iteration
+            else:
+                axes = [axes]  # Ensure axes is iterable for a single subplot
+    
+            # Iterate over the specified rows and plot
+            for i, row in enumerate(rows):
+                if i < len(axes):  # Check to avoid IndexError
+                    ax = axes[i]
+                    df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
+    
+                    if hue and hue in self.samples.columns:
+                        sns.violinplot(y=df, x=self.samples[hue].values, ax=ax, **violinplot_params)
+                    else:
+                        sns.violinplot(y=df, ax=ax, **violinplot_params)
+    
+                    # Retrieve and set the corresponding EID as the subplot title
+                    eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
+                    ax.set_title(f"EID: {eid}")
+    
+            # Set the overall title and show plot
+            plt.tight_layout()
+            plt.suptitle(title)
+            plt.subplots_adjust(top=0.88) # Adjust subplots to fit the main title
+            plt.close(fig)
+    
+            figs=fig
+    
+        return figs
+
+
 
     def regplot(self, column, pathways=None, eids=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", zeros=True, x_limit=None, cutoff_path=0.05, **regplot_params):
         """
