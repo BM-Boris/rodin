@@ -1378,6 +1378,64 @@ class Rodin_Class:
         self.uns[cmp_name] = df
         
         return df2
+                             
+
+    def show_compounds(self, cutoff_path=0.05, cutoff_eids=0.05, paths=None):
+        """
+        Returns a DataFrame with pathways and their associated compounds based on the given thresholds.
+        
+        Parameters:
+        - cutoff_path (float, optional): Threshold for filtering pathways based on p-value. Defaults to 0.05.
+        - cutoff_eids (float, optional): Threshold for filtering compounds based on p-value. Defaults to 0.05.
+        - paths (list of str or str, optional): List of specific pathways to include. Defaults to None, which includes all pathways that pass the cutoff.
+        
+        Returns:
+        - DataFrame: A DataFrame with pathways and their associated compounds.
+        """
+        
+        # Handle paths parameter and filter pathways
+        if paths is not None:
+            if isinstance(paths, str):
+                paths = [paths]
+            pathways_df_filtered = self.uns['pathways'][self.uns['pathways']['pathway'].isin(paths)]
+        else:
+            pathways_df_filtered = self.uns['pathways'][self.uns['pathways']['p-value'].astype(float) <= cutoff_path]
+    
+        # Prepare a list to store the results
+        results = []
+    
+        # Iterate through filtered pathways and collect compounds
+        for index, pathway_row in pathways_df_filtered.iterrows():
+            pathway = pathway_row['pathway']
+            compound_ids = pathway_row['overlap_EmpiricalCompounds (id)'].split(',')
+            
+            # Filter compounds based on cutoff_eids
+            compounds_df = self.uns['compounds']
+            compounds_filtered = compounds_df[
+                (compounds_df['EID'].isin(compound_ids)) &
+                (compounds_df['p_value'].astype(float) <= cutoff_eids)
+            ]
+            
+            # Append the results for this pathway
+            if not compounds_filtered.empty:
+                for _, compound_row in compounds_filtered.iterrows():
+                    results.append({
+                        'pathway': pathway,
+                        'compound_id': compound_row['EID'],
+                        'str_row_ion': compound_row['str_row_ion'],
+                        'compounds': compound_row['compounds'],
+                        'compound_names': compound_row['compound_names'],
+                        'input_row': compound_row['input_row'],
+                        'm/z': compound_row['m/z'],
+                        'retention_time': compound_row['retention_time'],
+                        'p_value': compound_row['p_value'],
+                        'statistic': compound_row['statistic']
+                    })
+    
+        results_df = pd.DataFrame(results)
+        results_df.set_index(['pathway', 'compound_id'], inplace=True)
+        
+        return results_df
 
                          
         
