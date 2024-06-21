@@ -1093,6 +1093,8 @@ class Rodin_Class:
                 nrows, ncols = grid_dim
                 if figsize is None:
                     figsize = (5 * ncols, 5 * nrows)
+                    height=None
+                    width=None
                 else:
                     height=figsize[1]*100
                     width=figsize[0]*100
@@ -1173,6 +1175,8 @@ class Rodin_Class:
             nrows, ncols = grid_dim
             if figsize is None:
                 figsize = (5 * ncols, 5 * nrows)
+                height=None
+                width=None
             else:
                 height=figsize[1]*100
                 width=figsize[0]*100
