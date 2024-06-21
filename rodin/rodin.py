@@ -1047,7 +1047,6 @@ class Rodin_Class:
         zeros (bool, optional): Whether to include zeros in the plot. Defaults to True.
         cutoff_path (float, optional): Threshold for filtering pathways based on p-value. Defaults to 0.05.
         interactive (bool, optional): Whether to generate interactive plots using Plotly. Defaults to True.
-   
         **boxplot_params: Additional keyword arguments to be passed to seaborn's violinplot function.
     
         Returns:
@@ -1106,9 +1105,9 @@ class Rodin_Class:
                     for i, row in enumerate(rows):
                         df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
                         if hue and hue in self.samples.columns:
-                            fig.add_trace(go.Box(y=df,x=self.samples[hue].values), row=i//ncols+1, col=i%ncols+1,**boxplot_params)
+                            fig.add_trace(go.Box(y=df,x=self.samples[hue].values,**boxplot_params), row=i//ncols+1, col=i%ncols+1)
                         else:
-                            fig.add_trace(go.Box(y=df), row=i//ncols+1, col=i%ncols+1,**boxplot_params)
+                            fig.add_trace(go.Box(y=df,**boxplot_params), row=i//ncols+1, col=i%ncols+1)
                             
                         fig.update_yaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=0)
                     fig.update_annotations(font_size=13)    
@@ -1188,9 +1187,9 @@ class Rodin_Class:
                 for i, row in enumerate(rows):
                     df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
                     if hue and hue in self.samples.columns:
-                        fig.add_trace(go.Box(y=df,x=self.samples[hue].values), row=i//ncols+1, col=i%ncols+1,**boxplot_params)
+                        fig.add_trace(go.Box(y=df,x=self.samples[hue].values,**boxplot_params), row=i//ncols+1, col=i%ncols+1)
                     else:
-                        fig.add_trace(go.Box(y=df), row=i//ncols+1, col=i%ncols+1,**boxplot_params)
+                        fig.add_trace(go.Box(y=df,**boxplot_params), row=i//ncols+1, col=i%ncols+1)
                         
                     fig.update_yaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=0)
                 fig.update_annotations(font_size=13)    
@@ -1234,7 +1233,7 @@ class Rodin_Class:
 
 
 
-    def violinplot(self, hue, pathways=None, eids=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", zeros=True, cutoff_path=0.05, **violinplot_params):
+    def violinplot(self, hue, pathways=None, eids=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", zeros=True, cutoff_path=0.05,interactive=True, **violinplot_params):
         """
         Generates violin plots for specified pathways, rows, or EIDs with an option to filter by significance.
     
@@ -1252,6 +1251,7 @@ class Rodin_Class:
         title (str, optional): Overall title for the plot.
         zeros (bool, optional): Whether to include zeros in the plot. Defaults to True.
         cutoff_path (float, optional): Threshold for filtering pathways based on p-value. Defaults to 0.05.
+        interactive (bool, optional): Whether to generate interactive plots using Plotly. Defaults to True.
         **violinplot_params: Additional keyword arguments to be passed to seaborn's violinplot function.
     
         Returns:
@@ -1259,6 +1259,8 @@ class Rodin_Class:
         """
         
         figs = []
+        if figsize is not None:
+            tmp=0
         
         # Handle the case where pathways, eids, and rows are all None
         if pathways is None and eids is None and rows is None:
@@ -1299,42 +1301,62 @@ class Rodin_Class:
                 nrows, ncols = grid_dim
                 if figsize is None:
                     figsize = (5 * ncols, 5 * nrows)
+                else:
+                    height=figsize[1]*100
+                    width=figsize[0]*100
     
                 # Create a figure and a grid of subplots
-                fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
-                if nrows * ncols > 1:
-                    axes = np.array(axes).reshape(-1)  # Flatten axes array for easy iteration
-                else:
-                    axes = [axes]  # Ensure axes is iterable for a single subplot
-    
-                # Iterate over the specified rows and plot
-                for i, row in enumerate(rows):
-                    if i < len(axes):  # Check to avoid IndexError
-                        ax = axes[i]
+                #####    
+                if interactive:
+                    fig = make_subplots(rows=int(nrows), cols=int(ncols), subplot_titles=[f"EID: {self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values}" for row in rows])
+                    for i, row in enumerate(rows):
                         df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
-    
                         if hue and hue in self.samples.columns:
-                            sns.violinplot(y=df, x=self.samples[hue].values, ax=ax, **violinplot_params)
+                            fig.add_trace(go.Violin(y=df,x=self.samples[hue].values,**violinplot_params), row=i//ncols+1, col=i%ncols+1)
                         else:
-                            sns.violinplot(y=df, ax=ax, **violinplot_params)
-    
-                        # Retrieve and set the corresponding EID as the subplot title
-                        eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
-                        ax.set_title(f"EID: {eid}")
-    
-                # Hide any unused subplots
-                for j in range(i+1, len(axes)):
-                    axes[j].axis('off')
-    
-                # Set the overall title and show plot
-                fig.tight_layout()
-                fig.suptitle(f"{pathway}")
-                fig.subplots_adjust(top=0.88)  # Adjust subplots to fit the main title
-                plt.show()
-                plt.close(fig)
-    
-                # Append the figure to the list
-                figs.append(fig)
+                            fig.add_trace(go.Violin(y=df,**violinplot_params), row=i//ncols+1, col=i%ncols+1)
+                            
+                        fig.update_yaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=0)
+                    fig.update_annotations(font_size=13)    
+                    fig.update_layout(title=title,showlegend=False,margin=dict(r=50))
+                    if 'tmp' in locals():
+                            fig.update_layout(height=height,width=width)
+                    fig.show()
+                else:
+                    fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
+                    if nrows * ncols > 1:
+                        axes = np.array(axes).reshape(-1)  # Flatten axes array for easy iteration
+                    else:
+                        axes = [axes]  # Ensure axes is iterable for a single subplot
+        
+                    # Iterate over the specified rows and plot
+                    for i, row in enumerate(rows):
+                        if i < len(axes):  # Check to avoid IndexError
+                            ax = axes[i]
+                            df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
+        
+                            if hue and hue in self.samples.columns:
+                                sns.violinplot(y=df, x=self.samples[hue].values, ax=ax, **violinplot_params)
+                            else:
+                                sns.violinplot(y=df, ax=ax, **violinplot_params)
+        
+                            # Retrieve and set the corresponding EID as the subplot title
+                            eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
+                            ax.set_title(f"EID: {eid}")
+        
+                    # Hide any unused subplots
+                    for j in range(i+1, len(axes)):
+                        axes[j].axis('off')
+        
+                    # Set the overall title and show plot
+                    fig.tight_layout()
+                    fig.suptitle(f"{pathway}")
+                    fig.subplots_adjust(top=0.88)  # Adjust subplots to fit the main title
+                    plt.show()
+                    plt.close(fig)
+        
+                    # Append the figure to the list
+                    figs.append(fig)
         else:
             # Handle 'eids' parameter and extract corresponding rows
             if eids is not None:
@@ -1362,36 +1384,55 @@ class Rodin_Class:
             nrows, ncols = grid_dim
             if figsize is None:
                 figsize = (5 * ncols, 5 * nrows)
-    
-            # Create a figure and a grid of subplots
-            fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
-            if nrows * ncols > 1:
-                axes = np.array(axes).reshape(-1)  # Flatten axes array for easy iteration
             else:
-                axes = [axes]  # Ensure axes is iterable for a single subplot
-    
-            # Iterate over the specified rows and plot
-            for i, row in enumerate(rows):
-                if i < len(axes):  # Check to avoid IndexError
-                    ax = axes[i]
+                height=figsize[1]*100
+                width=figsize[0]*100
+                
+            if interactive:
+                fig = make_subplots(rows=int(nrows), cols=int(ncols), subplot_titles=[f"EID: {self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values}" for row in rows])
+                for i, row in enumerate(rows):
                     df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
-    
                     if hue and hue in self.samples.columns:
-                        sns.violinplot(y=df, x=self.samples[hue].values, ax=ax, **violinplot_params)
+                        fig.add_trace(go.Violin(y=df,x=self.samples[hue].values,**violinplot_params), row=i//ncols+1, col=i%ncols+1)
                     else:
-                        sns.violinplot(y=df, ax=ax, **violinplot_params)
-    
-                    # Retrieve and set the corresponding EID as the subplot title
-                    eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
-                    ax.set_title(f"EID: {eid}")
-    
-            # Set the overall title and show plot
-            plt.tight_layout()
-            plt.suptitle(title)
-            plt.subplots_adjust(top=0.88) # Adjust subplots to fit the main title
-            plt.close(fig)
-    
-            figs=fig
+                        fig.add_trace(go.Violin(y=df,**violinplot_params), row=i//ncols+1, col=i%ncols+1)
+                        
+                    fig.update_yaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=0)
+                fig.update_annotations(font_size=13)    
+                fig.update_layout(title=title,showlegend=False,margin=dict(r=50))
+                if 'tmp' in locals():
+                        fig.update_layout(height=height,width=width)
+                fig.show()
+            else:
+                # Create a figure and a grid of subplots
+                fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
+                if nrows * ncols > 1:
+                    axes = np.array(axes).reshape(-1)  # Flatten axes array for easy iteration
+                else:
+                    axes = [axes]  # Ensure axes is iterable for a single subplot
+        
+                # Iterate over the specified rows and plot
+                for i, row in enumerate(rows):
+                    if i < len(axes):  # Check to avoid IndexError
+                        ax = axes[i]
+                        df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
+        
+                        if hue and hue in self.samples.columns:
+                            sns.violinplot(y=df, x=self.samples[hue].values, ax=ax, **violinplot_params)
+                        else:
+                            sns.violinplot(y=df, ax=ax, **violinplot_params)
+        
+                        # Retrieve and set the corresponding EID as the subplot title
+                        eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
+                        ax.set_title(f"EID: {eid}")
+        
+                # Set the overall title and show plot
+                plt.tight_layout()
+                plt.suptitle(title)
+                plt.subplots_adjust(top=0.88) # Adjust subplots to fit the main title
+                plt.close(fig)
+        
+                figs=fig
     
         return figs
 
