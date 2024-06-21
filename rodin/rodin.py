@@ -1093,8 +1093,6 @@ class Rodin_Class:
                 nrows, ncols = grid_dim
                 if figsize is None:
                     figsize = (5 * ncols, 5 * nrows)
-                    height=None
-                    width=None
                 else:
                     height=figsize[1]*100
                     width=figsize[0]*100
@@ -1110,7 +1108,9 @@ class Rodin_Class:
                             
                         fig.update_yaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=0)
                     fig.update_annotations(font_size=13)    
-                    fig.update_layout(title_text=f"{pathway}",showlegend=False,margin=dict(r=50),height=height,width=width)
+                    fig.update_layout(title_text=f"{pathway}",showlegend=False,margin=dict(r=50))
+                    if height in locals():
+                        fig.update_layout(height=height,width=width)
                     fig.show()
                 else:
                     # Create a figure and a grid of subplots
@@ -1175,8 +1175,6 @@ class Rodin_Class:
             nrows, ncols = grid_dim
             if figsize is None:
                 figsize = (5 * ncols, 5 * nrows)
-                height=None
-                width=None
             else:
                 height=figsize[1]*100
                 width=figsize[0]*100
@@ -1192,7 +1190,9 @@ class Rodin_Class:
                         
                     fig.update_yaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=0)
                 fig.update_annotations(font_size=13)    
-                fig.update_layout(title=title,showlegend=False,margin=dict(r=50),height=height,width=width)
+                fig.update_layout(title_text=f"{pathway}",showlegend=False,margin=dict(r=50))
+                    if height in locals():
+                        fig.update_layout(height=height,width=width)
                 fig.show()
             else:
             # Create a figure and a grid of subplots
