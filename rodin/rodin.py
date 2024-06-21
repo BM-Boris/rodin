@@ -1046,6 +1046,8 @@ class Rodin_Class:
         title (str, optional): Overall title for the plot.
         zeros (bool, optional): Whether to include zeros in the plot. Defaults to True.
         cutoff_path (float, optional): Threshold for filtering pathways based on p-value. Defaults to 0.05.
+        interactive (bool, optional): Whether to generate interactive plots using Plotly. Defaults to True.
+   
         **boxplot_params: Additional keyword arguments to be passed to seaborn's violinplot function.
     
         Returns:
@@ -1053,6 +1055,8 @@ class Rodin_Class:
         """
         
         figs = []
+        if figsize is not None:
+            tmp=0
         
         # Handle the case where pathways, eids, and rows are all None
         if pathways is None and eids is None and rows is None:
@@ -1109,7 +1113,7 @@ class Rodin_Class:
                         fig.update_yaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=0)
                     fig.update_annotations(font_size=13)    
                     fig.update_layout(title_text=f"{pathway}",showlegend=False,margin=dict(r=50))
-                    if 'height' in locals():
+                    if 'tmp' in locals():
                         fig.update_layout(height=height,width=width)
                     fig.show()
                 else:
@@ -1190,9 +1194,9 @@ class Rodin_Class:
                         
                     fig.update_yaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=0)
                 fig.update_annotations(font_size=13)    
-                fig.update_layout(title_text=f"{pathway}",showlegend=False,margin=dict(r=50))
-                if 'height' in locals():
-                    fig.update_layout(height=height,width=width)
+                fig.update_layout(title=title,showlegend=False,margin=dict(r=50))
+                if 'tmp' in locals():
+                        fig.update_layout(height=height,width=width)
                 fig.show()
             else:
             # Create a figure and a grid of subplots
