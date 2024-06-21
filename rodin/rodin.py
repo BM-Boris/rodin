@@ -341,7 +341,7 @@ class Rodin_Class:
         if interactive:
             # Prepare the plot
             scatter_args = {'x': dr_data[:, 0], 'y': dr_data[:, 1], 'width':900,'height':550,
-                            'hover_name':obj.samples.iloc[:,0], **scatterplot_params}
+                            'hover_name': self.samples.iloc[:,0], **scatterplot_params}
             
             if hue: scatter_args['color'] = self.samples[hue]
             if size: scatter_args['size'] = self.samples[size]
