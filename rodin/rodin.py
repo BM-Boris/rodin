@@ -16,6 +16,8 @@ import pingouin as pg
 from tqdm.auto import tqdm
 import dash_bio
 import plotly.express as px
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
 import pickle
 from .mummichog.functional_analysis import *
 from io import StringIO
@@ -1026,7 +1028,7 @@ class Rodin_Class:
 
         return fig
 
-    def boxplot(self, hue, pathways=None, eids=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", zeros=True, cutoff_path=0.05, **boxplot_params):
+    def boxplot(self, hue, pathways=None, eids=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", zeros=True, cutoff_path=0.05,interactive=True, **boxplot_params):
         """
         Generates box plots for specified pathways, rows, or EIDs with an option to filter by significance.
     
@@ -1091,42 +1093,59 @@ class Rodin_Class:
                 nrows, ncols = grid_dim
                 if figsize is None:
                     figsize = (5 * ncols, 5 * nrows)
-    
-                # Create a figure and a grid of subplots
-                fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
-                if nrows * ncols > 1:
-                    axes = np.array(axes).reshape(-1)  # Flatten axes array for easy iteration
                 else:
-                    axes = [axes]  # Ensure axes is iterable for a single subplot
-    
-                # Iterate over the specified rows and plot
-                for i, row in enumerate(rows):
-                    if i < len(axes):  # Check to avoid IndexError
-                        ax = axes[i]
+                    height=figsize[1]*100
+                    width=figsize[0]*100
+                #####    
+                if interactive:
+                    fig = make_subplots(rows=int(nrows), cols=int(ncols), subplot_titles=[f"EID: {self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values}" for row in rows])
+                    for i, row in enumerate(rows):
                         df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
-    
                         if hue and hue in self.samples.columns:
-                            sns.boxplot(y=df, x=self.samples[hue].values, ax=ax, **boxplot_params)
+                            fig.add_trace(go.Box(y=df,x=self.samples[hue].values), row=i//ncols+1, col=i%ncols+1,**boxplot_params)
                         else:
-                            sns.boxplot(y=df, ax=ax, **boxplot_params)
-    
-                        # Retrieve and set the corresponding EID as the subplot title
-                        eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
-                        ax.set_title(f"EID: {eid}")
-    
-                # Hide any unused subplots
-                for j in range(i+1, len(axes)):
-                    axes[j].axis('off')
-    
-                # Set the overall title and show plot
-                fig.tight_layout()
-                fig.suptitle(f"{pathway}")
-                fig.subplots_adjust(top=0.88)  # Adjust subplots to fit the main title
-                plt.show()
-                plt.close(fig)
-    
-                # Append the figure to the list
-                figs.append(fig)
+                            fig.add_trace(go.Box(y=df), row=i//ncols+1, col=i%ncols+1,**boxplot_params)
+                            
+                        fig.update_yaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=0)
+                    fig.update_annotations(font_size=13)    
+                    fig.update_layout(title_text=f"{pathway}",showlegend=False,margin=dict(r=50),height=height,width=width)
+                    fig.show()
+                else:
+                    # Create a figure and a grid of subplots
+                    fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
+                    if nrows * ncols > 1:
+                        axes = np.array(axes).reshape(-1)  # Flatten axes array for easy iteration
+                    else:
+                        axes = [axes]  # Ensure axes is iterable for a single subplot
+        
+                    # Iterate over the specified rows and plot
+                    for i, row in enumerate(rows):
+                        if i < len(axes):  # Check to avoid IndexError
+                            ax = axes[i]
+                            df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
+        
+                            if hue and hue in self.samples.columns:
+                                sns.boxplot(y=df, x=self.samples[hue].values, ax=ax, **boxplot_params)
+                            else:
+                                sns.boxplot(y=df, ax=ax, **boxplot_params)
+        
+                            # Retrieve and set the corresponding EID as the subplot title
+                            eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
+                            ax.set_title(f"EID: {eid}")
+        
+                    # Hide any unused subplots
+                    for j in range(i+1, len(axes)):
+                        axes[j].axis('off')
+        
+                    # Set the overall title and show plot
+                    fig.tight_layout()
+                    fig.suptitle(f"{pathway}")
+                    fig.subplots_adjust(top=0.88)  # Adjust subplots to fit the main title
+                    plt.show()
+                    plt.close(fig)
+        
+                    # Append the figure to the list
+                    figs.append(fig)
         else:
             # Handle 'eids' parameter and extract corresponding rows
             if eids is not None:
@@ -1154,38 +1173,56 @@ class Rodin_Class:
             nrows, ncols = grid_dim
             if figsize is None:
                 figsize = (5 * ncols, 5 * nrows)
-    
-            # Create a figure and a grid of subplots
-            fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
-            if nrows * ncols > 1:
-                axes = np.array(axes).reshape(-1)  # Flatten axes array for easy iteration
             else:
-                axes = [axes]  # Ensure axes is iterable for a single subplot
-    
-            # Iterate over the specified rows and plot
-            for i, row in enumerate(rows):
-                if i < len(axes):  # Check to avoid IndexError
-                    ax = axes[i]
+                height=figsize[1]*100
+                width=figsize[0]*100
+            #####    
+            if interactive:
+                fig = make_subplots(rows=int(nrows), cols=int(ncols), subplot_titles=[f"EID: {self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values}" for row in rows])
+                for i, row in enumerate(rows):
                     df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
-    
                     if hue and hue in self.samples.columns:
-                        sns.boxplot(y=df, x=self.samples[hue].values, ax=ax, **boxplot_params)
+                        fig.add_trace(go.Box(y=df,x=self.samples[hue].values), row=i//ncols+1, col=i%ncols+1,**boxplot_params)
                     else:
-                        sns.boxplot(y=df, ax=ax, **boxplot_params)
+                        fig.add_trace(go.Box(y=df), row=i//ncols+1, col=i%ncols+1,**boxplot_params)
+                        
+                    fig.update_yaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=0)
+                fig.update_annotations(font_size=13)    
+                fig.update_layout(title=title,showlegend=False,margin=dict(r=50),height=height,width=width)
+                fig.show()
+            else:
+            # Create a figure and a grid of subplots
+                fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
+                if nrows * ncols > 1:
+                    axes = np.array(axes).reshape(-1)  # Flatten axes array for easy iteration
+                else:
+                    axes = [axes]  # Ensure axes is iterable for a single subplot
+        
+                # Iterate over the specified rows and plot
+                for i, row in enumerate(rows):
+                    if i < len(axes):  # Check to avoid IndexError
+                        ax = axes[i]
+                        df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
+        
+                        if hue and hue in self.samples.columns:
+                            sns.boxplot(y=df, x=self.samples[hue].values, ax=ax, **boxplot_params)
+                        else:
+                            sns.boxplot(y=df, ax=ax, **boxplot_params)
+        
+                        # Retrieve and set the corresponding EID as the subplot title
+                        eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
+                        ax.set_title(f"EID: {eid}")
+        
+                # Set the overall title and show plot
+                plt.tight_layout()
+                plt.suptitle(title)
+                plt.subplots_adjust(top=0.88) # Adjust subplots to fit the main title
+                plt.close(fig)
+        
+                figs=fig
     
-                    # Retrieve and set the corresponding EID as the subplot title
-                    eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
-                    ax.set_title(f"EID: {eid}")
-    
-            # Set the overall title and show plot
-            plt.tight_layout()
-            plt.suptitle(title)
-            plt.subplots_adjust(top=0.88) # Adjust subplots to fit the main title
-            plt.close(fig)
-    
-            figs=fig
-    
-        return figs
+        return figs or None
+
 
 
 
