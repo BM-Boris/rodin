@@ -15,6 +15,7 @@ from sklearn.preprocessing import LabelEncoder
 import pingouin as pg
 from tqdm.auto import tqdm
 import dash_bio
+import plotly.express as px
 import pickle
 from .mummichog.functional_analysis import *
 from io import StringIO
@@ -300,7 +301,7 @@ class Rodin_Class:
         self.dr[custom_name] = tsne_result
 
 
-    def plot(self, hue=None, dr_name='umap', size=None, markers=None,title = "",**scatterplot_params):
+    def plot(self, hue=None, dr_name='umap', size=None, markers=None,title = "",interactive=True, **scatterplot_params):
         """
         Plot the results of a dimensionality reduction technique.
     
@@ -310,6 +311,7 @@ class Rodin_Class:
         - size (str, optional): Column name in the 'samples' DataFrame to adjust point sizes. Defaults to None.
         - markers (str, optional): Column name in the 'samples' DataFrame for point styles. Defaults to None.
         - title (str, optional): Title for the plot. Defaults to an empty string.
+        - interactive (bool, optional): Whether to create an interactive Plotly scatterplot or a static Seaborn scatterplot. Defaults to True.
         - scatterplot_params (dict, optional): Additional keyword arguments for seaborn.scatterplot.
     
         Raises:
@@ -336,23 +338,45 @@ class Rodin_Class:
         if dr_data.shape[1] != 2:
             raise ValueError("Reduction data must be 2-dimensional for plotting.")
 
-        # Prepare the plot
-        scatter_args = {'x': dr_data[:, 0], 'y': dr_data[:, 1], **scatterplot_params}
-        if hue: scatter_args['hue'] = self.samples[hue]
-        if size: scatter_args['size'] = self.samples[size]
-        if markers: scatter_args['style'] = self.samples[markers]
+        if interactive:
+            # Prepare the plot
+            scatter_args = {'x': dr_data[:, 0], 'y': dr_data[:, 1], 'width':900,'height':550,
+                            'hover_name':obj.samples.iloc[:,0], **scatterplot_params}
+            
+            if hue: scatter_args['color'] = self.samples[hue]
+            if size: scatter_args['size'] = self.samples[size]
+            if markers: scatter_args['symbol'] = self.samples[markers]
+            
+        
+            # Prepare the plot
+            ax=px.scatter(**scatter_args,labels={
+                     "x": f'{dr_name}_1',
+                     "y": f'{dr_name}_2'})
+            ax.update_layout(
+                title={
+                    'text': f"{title}",
+                    'x': 0.45,
+                    'xanchor': 'center'
+            })
 
-        # Prepare the plot
-        ax=sns.scatterplot(**scatter_args)
-
-        plt.title(title)
-        plt.xlabel(f'{dr_name}_1')
-        plt.ylabel(f'{dr_name}_2')
-
-        try:
-            sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
-        except:
-            pass
+        else:
+            # Prepare the plot
+            scatter_args = {'x': dr_data[:, 0], 'y': dr_data[:, 1], **scatterplot_params}
+            if hue: scatter_args['hue'] = self.samples[hue]
+            if size: scatter_args['size'] = self.samples[size]
+            if markers: scatter_args['style'] = self.samples[markers]
+        
+            # Prepare the plot
+            ax=sns.scatterplot(**scatter_args)
+        
+            plt.title(title)
+            plt.xlabel(f'{dr_name}_1')
+            plt.ylabel(f'{dr_name}_2')
+        
+            try:
+                sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+            except:
+                pass
         
         return ax
 
