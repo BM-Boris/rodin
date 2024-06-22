@@ -966,7 +966,7 @@ class Rodin_Class:
 
     def clustergram(self, title="", interactive=True,
                     height=820,width=900,center_values=False,standardize='row',
-                    link_method='ward',hidden_labels='row',color_map='RdBu',line_width=1.4, **clustergram_params):
+                    link_method='ward',hidden_labels='row',color_map='RdBu',line_width=1.4,hue=None, **clustergram_params):
         """
         Creates a clustergram (clustered heatmap) of the X matrix.
     
@@ -980,6 +980,7 @@ class Rodin_Class:
         - hidden_labels (str, optional): Labels to hide in the plot. Defaults to 'row'.
         - color_map (str, optional): Color map for the heatmap. Defaults to 'RdBu'.
         - line_width (float, optional): Line width for the clustergram. Defaults to 1.4.
+        - hue (str, optional): Column name in the samples DataFrame used to color the labels. Defaults to None.
         - clustergram_params (dict, optional): Additional keyword arguments for Dash Bio Clustergram or Seaborn clustermap.
     
         Raises:
@@ -1010,14 +1011,36 @@ class Rodin_Class:
                 line_width=line_width,
                 **clustergram_params
             )
+
+            
             title_part = title
             fig.update_layout(
                 title={
                     'text': f"{title_part}",
                     'x': 0.45,
                     'xanchor': 'center'
-                }
-            )
+                })
+            if hue:
+                ticks = fig.layout.xaxis11['ticktext']
+                cats = self.samples[hue].unique()
+                colors=px.colors.qualitative.Alphabet
+                keys = dict(zip(cats, colors))
+                ticks = [f"<span style='color:{str(keys[self.samples[self.samples.iloc[:,0]==i][hue].values[0]])}'> {str(i)} </span>" for i in ticks]
+
+                fig.layout.xaxis11['ticktext']=ticks
+
+                s=""
+                for i in keys:
+                    s+=f"<span style='color:{keys[i]}'><b>• {i} </b></span>"
+
+                fig.update_layout(annotations=[dict(
+                        text=s,
+                        showarrow=False,
+                        xref='x11',
+                        x=0,
+                        opacity=0.8,)])
+        
+                
         else:
             standard_scale = 0 if standardize=='row' else 1
             figsize=(height/100,width/100)
