@@ -1051,7 +1051,7 @@ class Rodin_Class:
 
         return fig
 
-    def boxplot(self, hue, pathways=None, eids=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", zeros=True, cutoff_path=0.05,interactive=True, **boxplot_params):
+    def boxplot(self, hue, pathways=None, eids=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", zeros=True, cutoff_path=0.05,interactive=True,category_order=None, **boxplot_params):
         """
         Generates box plots for specified pathways, rows, or EIDs with an option to filter by significance.
     
@@ -1070,6 +1070,7 @@ class Rodin_Class:
         zeros (bool, optional): Whether to include zeros in the plot. Defaults to True.
         cutoff_path (float, optional): Threshold for filtering pathways based on p-value. Defaults to 0.05.
         interactive (bool, optional): Whether to generate interactive plots using Plotly. Defaults to True.
+        category_order (list, optional): A list of classes to change the order of plots.
         **boxplot_params: Additional keyword arguments to be passed to seaborn's violinplot function.
     
         Returns:
@@ -1137,6 +1138,9 @@ class Rodin_Class:
                     fig.update_layout(title_text=f"{pathway}",showlegend=False,margin=dict(r=50))
                     if 'tmp' in locals():
                         fig.update_layout(height=height,width=width)
+                    if category_order:
+                        fig.update_xaxes(dict(categoryarray=category_order))
+                        
                     fig.show()
                 else:
                     # Create a figure and a grid of subplots
@@ -1219,6 +1223,9 @@ class Rodin_Class:
                 fig.update_layout(title=title,showlegend=False,margin=dict(r=50))
                 if 'tmp' in locals():
                         fig.update_layout(height=height,width=width)
+                if category_order:
+                        fig.update_xaxes(dict(categoryarray=category_order))
+                        
                 fig.show()
             else:
             # Create a figure and a grid of subplots
@@ -1256,7 +1263,8 @@ class Rodin_Class:
 
 
 
-    def violinplot(self, hue, pathways=None, eids=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", zeros=True, cutoff_path=0.05,interactive=True, **violinplot_params):
+
+    def violinplot(self, hue, pathways=None, eids=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", zeros=True, cutoff_path=0.05,interactive=True,category_order=None, **violinplot_params):
         """
         Generates violin plots for specified pathways, rows, or EIDs with an option to filter by significance.
     
@@ -1275,6 +1283,7 @@ class Rodin_Class:
         zeros (bool, optional): Whether to include zeros in the plot. Defaults to True.
         cutoff_path (float, optional): Threshold for filtering pathways based on p-value. Defaults to 0.05.
         interactive (bool, optional): Whether to generate interactive plots using Plotly. Defaults to True.
+        category_order (list, optional): A list of classes to change the order of plots.
         **violinplot_params: Additional keyword arguments to be passed to seaborn's violinplot function.
     
         Returns:
@@ -1344,6 +1353,8 @@ class Rodin_Class:
                     fig.update_layout(title_text=f"{pathway}",showlegend=False,margin=dict(r=50))
                     if 'tmp' in locals():
                             fig.update_layout(height=height,width=width)
+                    if category_order:
+                        fig.update_xaxes(dict(categoryarray=category_order))
                     fig.show()
                 else:
                     fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
@@ -1425,6 +1436,8 @@ class Rodin_Class:
                 fig.update_layout(title=title,showlegend=False,margin=dict(r=50))
                 if 'tmp' in locals():
                         fig.update_layout(height=height,width=width)
+                if category_order:
+                        fig.update_xaxes(dict(categoryarray=category_order))
                 fig.show()
             else:
                 # Create a figure and a grid of subplots
