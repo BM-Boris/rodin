@@ -1023,7 +1023,7 @@ class Rodin_Class:
             if hue:
                 ticks = fig.layout.xaxis11['ticktext']
                 cats = self.samples[hue].unique()
-                colors=px.colors.qualitative.Alphabet
+                colors=px.colors.qualitative.Plotly
                 keys = dict(zip(cats, colors))
                 ticks = [f"<span style='color:{str(keys[self.samples[self.samples.iloc[:,0]==i][hue].values[0]])}'> {str(i)} </span>" for i in ticks]
 
