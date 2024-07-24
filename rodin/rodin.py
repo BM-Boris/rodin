@@ -438,7 +438,7 @@ class Rodin_Class:
 
         # Remove rows with constant values across all samples and duplicates
         df_features_processed = df_norm.loc[df_norm.nunique(axis=1) > 1]
-        df_features_processed = df_features_processed.drop_duplicates(ignore_index=True)
+        df_features_processed = df_features_processed.drop_duplicates(ignore_index=False)
 
 
         filtered_feature_count = self.X.shape[0] - df_features_processed.shape[0]
