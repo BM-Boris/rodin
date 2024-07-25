@@ -1031,12 +1031,13 @@ class Rodin_Class:
 
                 s=""
                 for i in keys:
-                    s+=f"<span style='color:{keys[i]}'><b>• {i} </b></span>"
+                    s+=f"<span style='color:{keys[i]}'><b>• {i}<br></b></span>"
 
                 fig.update_layout(annotations=[dict(
                         text=s,
                         showarrow=False,
                         xref='x11',
+                        xanchor="right",
                         x=0,
                         opacity=0.8,)])
         
