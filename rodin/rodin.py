@@ -831,7 +831,7 @@ class Rodin_Class:
 
                     
 
-    def rf_class(self, target_column, n_estimators=100, random_state=16,cv=4, **kwargs):
+    def rf_class(self, target_column, n_estimators=100, random_state=16,cv=0, **kwargs):
         """
         Trains a Random Forest Classifier using 4-fold cross-validation on the data, returns feature importances,
         and print a classification report.
@@ -840,7 +840,7 @@ class Rodin_Class:
         - target_column (str): Column name in the 'samples' DataFrame to use as the target variable.
         - n_estimators (int, optional): The number of trees in the forest. Defaults to 100.
         - random_state (int, optional): Random state for reproducibility. Defaults to 16.
-        - cv (int, optional): Number of folds for validation. Defaults to 4.
+        - cv (int, optional): Number of folds for validation. Defaults to 0.
     
         Raises:
         - ValueError: If X or samples are None or if the target_column is not in samples.
@@ -858,13 +858,14 @@ class Rodin_Class:
         y = self.samples[target_column]
     
         clf = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state, **kwargs)
-    
-        # Perform cross-validated predictions
-        y_pred = cross_val_predict(clf, X, y, cv=cv)
-    
-        # Generate classification report
-        report = classification_report(y, y_pred, output_dict=True)
-        print(pd.DataFrame(report).transpose())
+
+        if cv>0:
+            # Perform cross-validated predictions
+            y_pred = cross_val_predict(clf, X, y, cv=cv)
+        
+            # Generate classification report
+            report = classification_report(y, y_pred, output_dict=True)
+            print(pd.DataFrame(report).transpose())
     
         # Train a final model to get feature importances
         clf.fit(X, y)
@@ -874,7 +875,7 @@ class Rodin_Class:
         return self.features
         
 
-    def rf_regress(self, target_column, n_estimators=100, random_state=16, cv=4, **kwargs):
+    def rf_regress(self, target_column, n_estimators=100, random_state=16, cv=0, **kwargs):
         """
         Trains a Random Forest Regressor using cross-validation on the data, returns feature importances,
         and print regression metrics.
@@ -883,7 +884,7 @@ class Rodin_Class:
         - target_column (str): Column name in the 'samples' DataFrame to use as the target variable.
         - n_estimators (int, optional): The number of trees in the forest. Defaults to 100.
         - random_state (int, optional): Random state for reproducibility. Defaults to 16.
-        - cv (int, optional): Number of folds for cross-validation. Defaults to 4.
+        - cv (int, optional): Number of folds for cross-validation. Defaults to 0.
     
         Raises:
         - ValueError: If X or samples are None or if the target_column is not in samples.
@@ -901,14 +902,15 @@ class Rodin_Class:
         y = self.samples[target_column]
     
         clf = RandomForestRegressor(n_estimators=n_estimators, random_state=random_state, **kwargs)
-    
-        y_pred = cross_val_predict(clf, X, y, cv=cv)
-    
-        mse = mean_squared_error(y, y_pred)
-        mae = mean_absolute_error(y, y_pred)
-        r2 = r2_score(y, y_pred)
-    
-        print("MSE: ",mse,"\nMAE: ",mae,"\nR2: ",r2)
+
+        if cv>0:
+            y_pred = cross_val_predict(clf, X, y, cv=cv)
+        
+            mse = mean_squared_error(y, y_pred)
+            mae = mean_absolute_error(y, y_pred)
+            r2 = r2_score(y, y_pred)
+        
+            print("MSE: ",mse,"\nMAE: ",mae,"\nR2: ",r2)
     
         # Train a final model to get feature importances
         clf.fit(X, y)
