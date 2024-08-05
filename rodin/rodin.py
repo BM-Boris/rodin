@@ -1213,7 +1213,7 @@ class Rodin_Class:
                 width=figsize[0]*100
             #####    
             if interactive:
-                fig = make_subplots(rows=int(nrows), cols=int(ncols), subplot_titles=[f"EID: {self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values}" for row in rows])
+                fig = make_subplots(rows=int(nrows), cols=int(ncols))
                 for i, row in enumerate(rows):
                     df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
                     if hue and hue in self.samples.columns:
@@ -1426,7 +1426,7 @@ class Rodin_Class:
                 width=figsize[0]*100
                 
             if interactive:
-                fig = make_subplots(rows=int(nrows), cols=int(ncols), subplot_titles=[f"EID: {self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values}" for row in rows])
+                fig = make_subplots(rows=int(nrows), cols=int(ncols))
                 for i, row in enumerate(rows):
                     df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
                     if hue and hue in self.samples.columns:
@@ -1634,7 +1634,7 @@ class Rodin_Class:
                 height=figsize[1]*100
                 width=figsize[0]*100
             if interactive:
-                fig = make_subplots(rows=int(nrows), cols=int(ncols), subplot_titles=[f"EID: {self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values}" for row in rows])
+                fig = make_subplots(rows=int(nrows), cols=int(ncols))
                 for i, row in enumerate(rows):
                     df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
 
