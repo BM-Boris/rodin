@@ -25,6 +25,7 @@ setup(
         'dash==2.7.0',
         'pickle-mixin>=1.0.2',
         'networkx>=2.6',
+        'plotly>=5.19.0',
         'fastcluster',
         
     ],
