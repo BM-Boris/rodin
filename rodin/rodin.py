@@ -922,7 +922,7 @@ class Rodin_Class:
     
     def fold_change(self, column_name,reference=None):
         """
-        Calculates log fold change for the data grouped by the specified column in the samples DataFrame.
+        Calculates log fold change for the data grouped by the specified column in the samples DataFrame (use log transformation in the previous steps).
     
         Parameters:
         - column_name (str): Column name in the samples DataFrame to group the data for fold change calculation.
@@ -954,15 +954,15 @@ class Rodin_Class:
 
         for idx, group in enumerate(data_groups[1:]):
             mean_current_group = np.mean(group, axis=1)
-            log_fold_change = np.log2(np.expm1(mean_group_0+1e-9) / np.expm1(mean_current_group+1e-9))
+            log_fold_change = mean_current_group - mean_group_0
     
-            self.features[f'lfc ({unique_classes[0]} vs {unique_classes[idx+1]})'] = log_fold_change
+            self.features[f'lfc ({unique_classes[idx+1]} vs {unique_classes[0]})'] = log_fold_change
     
             if(len(unique_classes) > 2):
                 avg_fc.append(log_fold_change)
                 
         if(len(unique_classes) > 2):
-            self.features[f'lfc ({unique_classes[0]} vs others)'] = np.mean(avg_fc, axis=0)
+            self.features[f'lfc (others vs {unique_classes[0]})'] = np.mean(avg_fc, axis=0)
             
         return self.features
 
