@@ -1682,6 +1682,74 @@ class Rodin_Class:
     
         return figs or None
 
+    def volcano(self, p, effect_size, significance_line_value=0.05, annotation='index',
+            effect_size_line=None, logp=True, title="", legend=None, **volcano_params):
+        """
+        Generates a volcano plot with customizable parameters.
+    
+        Parameters:
+        p (str): Column name in 'self.features' representing p-values to be plotted on the y-axis.
+        effect_size (str): Column name in 'self.features' representing effect sizes to be plotted on the x-axis.
+        significance_line_value (float, optional): Threshold value for the significance line. Default is 0.05.
+        annotation (str, optional): Column name or index for annotating points on the plot. Default is 'index'.
+        effect_size_line (list of bool, optional): A list indicating whether to draw effect size lines on the plot. Default is [False, False].
+        logp (bool, optional): Whether to log-transform p-values (-log10). Default is True.
+        title (str, optional): Title for the volcano plot.
+        legend (dict, optional): Custom legend to be displayed on the plot.
+        **volcano_params: Additional keyword arguments to be passed to the volcano plot function.
+    
+        Returns:
+        fig: A Plotly figure object containing the generated volcano plot.
+        """
+    
+        if self.features is None:
+            raise ValueError("The 'features' attribute must be assigned before plotting a volcano plot.")
+        
+        # Ensure effect_size_line is initialized
+        if effect_size_line is None:
+            effect_size_line = [False, False]
+        
+        # Check if required columns exist in self.features
+        if p not in self.features.columns or effect_size not in self.features.columns:
+            raise ValueError(f"Columns '{p}' and '{effect_size}' must exist in 'self.features'.")
+        
+        # Log-transform p-values if necessary
+        ylabel = f'-log10 [{p}]' if logp else p
+        if logp:
+            significance_line_value = -np.log10(significance_line_value)
+        
+        # Generate the plot
+        fig = dash_bio.VolcanoPlot(
+            self.features.reset_index(),
+            p=p,
+            effect_size=effect_size,
+            snp=None,
+            gene=None,
+            annotation=annotation,
+            logp=logp,
+            significance_line_value=significance_line_value,
+            effect_size_line=effect_size_line,
+            effect_size_line_color='#EF553B',
+            effect_size_line_width=1,
+            genomewideline_color='#EF553B',
+            highlight_color='#119DFF',
+            col='#2A3F5F',
+            xlabel=effect_size,
+            ylabel=ylabel,
+            legend=legend,
+            **volcano_params
+        )
+    
+        # Adjust x-axis range
+        fig.update_xaxes(range=[
+            self.features[effect_size].min() - self.features[effect_size].std() / 5,
+            self.features[effect_size].max() + self.features[effect_size].std() / 5
+        ])
+    
+        return fig
+
+
+
 
     def save(self,path):
         """
