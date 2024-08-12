@@ -1956,6 +1956,205 @@ class Rodin_Class:
         
         return results_df
 
+
+    #####################    
+    def web_boxplot(self, hue, dist='box', pathways=None, eids=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", zeros=True, cutoff_path=0.05,interactive=True,category_order=None, trend='ols',points='all',**boxplot_params):
+    
+        figs = []
+        
+        # Handle the case where pathways, eids, and rows are all None
+        if pathways is None and eids is None and rows is None:
+            compounds_df = self.show_compounds(cutoff_path=cutoff_path, cutoff_eids=significant)
+            pathways = compounds_df.index.get_level_values('pathway').unique().tolist()
+        
+        
+        if pathways is not None and rows is None:
+            if isinstance(pathways, str):
+                pathways = [pathways]
+    
+            compounds_df = self.show_compounds(paths=pathways, cutoff_path=cutoff_path, cutoff_eids=significant)
+            max_input_rows = compounds_df.groupby(level='pathway')['input_row'].nunique().max()
+            
+            for pathway in pathways:
+                pathway_compounds = compounds_df.xs(pathway, level='pathway')
+                eids = pathway_compounds.index.get_level_values('compound_id').unique().tolist()
+                
+                # Filter for rows with p_value less than or equal to the significant threshold
+                rows = self.uns['compounds'][(self.uns['compounds']['EID'].isin(eids)) & (self.uns['compounds']['p_value'] <= significant)].input_row.values
+                
+                # If no rows are found, skip this pathway
+                if len(rows) == 0:
+                    print(f"No significant compounds found for pathway: {pathway}")
+                    continue
+    
+                # Ensure rows is a list
+                if isinstance(rows, int):
+                    rows = [rows]
+    
+                rows = np.unique(rows)
+    
+                # Determine the number of subplots and set default grid dimensions if not provided
+                n_plots = len(rows)
+                if n_plots>4:
+                    nnrows=n_plots//4 + (n_plots%4>0)
+                    ncols=4
+                else:
+                    nnrows=1
+                    ncols=max_input_rows   
+                    
+                grid_dim = (nnrows, ncols)  # Default to one column with a row for each plot
+    
+                nrows, ncols = grid_dim
+                if nnrows>1:
+                    height=nnrows*275
+                    tmp=0
+                else:
+                    tmp=1
+              
+                #####    
+                if interactive:
+                    fig = make_subplots(rows=int(nrows), cols=int(ncols), subplot_titles=[f"EID: {self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values}" for row in rows])
+                    for i, row in enumerate(rows):
+                        df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
+                        if dist=='box':
+                            if hue and hue in self.samples.columns:
+                                fig.add_trace(go.Box(y=df,x=self.samples[hue].values,**boxplot_params), row=i//ncols+1, col=i%ncols+1)
+                            else:
+                                fig.add_trace(go.Box(y=df,**boxplot_params), row=i//ncols+1, col=i%ncols+1)
+                        elif dist=='violin':
+                            if hue and hue in self.samples.columns:
+                                fig.add_trace(go.Violin(y=df,x=self.samples[hue].values,points=points,**boxplot_params), row=i//ncols+1, col=i%ncols+1)
+                            else:
+                                fig.add_trace(go.Violin(y=df,points=points,**boxplot_params), row=i//ncols+1, col=i%ncols+1)
+                        else:
+                            scatter_trace=go.Scatter(y=df,x=self.samples[hue].values,mode="markers",hovertext=self.samples.iloc[:,0],**boxplot_params)
+                            fig.add_trace(scatter_trace, row=i//ncols+1, col=i%ncols+1)
+                            
+                            trendline = px.scatter(y=df,x=self.samples[hue].values, trendline=trend,trendline_color_override='#BE9B7B').data[1]
+                            fig.add_trace(trendline,row=i//ncols+1, col=i%ncols+1)
+    
+                            
+                        fig.update_xaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=10)
+                    fig.update_annotations(font_size=13)    
+                    fig.update_layout(title_text=f"{pathway}",showlegend=False,margin=dict(r=0,b=10))
+                    if tmp ==0:
+                        fig.update_layout(height=height)
+                    if category_order:
+                        fig.update_xaxes(dict(categoryarray=category_order))
+                    figs.append(fig)
+        else:
+            # Handle 'eids' parameter and extract corresponding rows
+            if eids is not None:
+                if isinstance(eids, int):
+                    eids = [eids]
+                # Filter for rows with p_value less than or equal to the significant threshold
+                rows = self.uns['compounds'][(self.uns['compounds']['EID'].isin(eids)) & (self.uns['compounds']['p_value'] <= significant)].input_row.values
+            
+            # If rows is None or empty after handling eids or pathway, return without plotting
+            if rows is None or len(rows) == 0:
+                print("No rows to plot.")
+                return []
+    
+            # Ensure 'rows' is a list
+            if isinstance(rows, int):
+                rows = [rows]
+    
+            rows = np.unique(rows)
+    
+            # Determine the number of subplots and set default grid dimensions if not provided
+            n_plots = len(rows)
+            if n_plots>4:
+                nnrows=n_plots//4 + (n_plots%4>0)
+                ncols=4
+            else:
+                nnrows=1
+                ncols=n_plots   
+                
+            grid_dim = (nnrows, ncols)  # Default to one column with a row for each plot
+    
+            nrows, ncols = grid_dim
+            if nnrows>1:
+                height=nnrows*275
+                tmp=0
+            else:
+                tmp=1
+            #####    
+            if interactive:
+                fig = make_subplots(rows=int(nrows), cols=int(ncols))
+                for i, row in enumerate(rows):
+                    df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
+                    if dist=='box':
+                        if hue and hue in self.samples.columns:
+                            fig.add_trace(go.Box(y=df,x=self.samples[hue].values,**boxplot_params), row=i//ncols+1, col=i%ncols+1)
+                        else:
+                            fig.add_trace(go.Box(y=df,**boxplot_params), row=i//ncols+1, col=i%ncols+1)
+                    elif dist=='violin':
+                        if hue and hue in self.samples.columns:
+                            fig.add_trace(go.Violin(y=df,x=self.samples[hue].values,points=points,**boxplot_params), row=i//ncols+1, col=i%ncols+1)
+                        else:
+                            fig.add_trace(go.Violin(y=df,points=points,**boxplot_params), row=i//ncols+1, col=i%ncols+1)
+                    else:
+                        scatter_trace=go.Scatter(y=df,x=self.samples[hue].values,mode="markers",hovertext=self.samples.iloc[:,0],**boxplot_params)
+                        fig.add_trace(scatter_trace, row=i//ncols+1, col=i%ncols+1)
+                        
+                        trendline = px.scatter(y=df,x=self.samples[hue].values, trendline=trend,trendline_color_override='#BE9B7B').data[1]
+                        fig.add_trace(trendline,row=i//ncols+1, col=i%ncols+1)
+    
+                    fig.update_xaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=10)
+                fig.update_annotations(font_size=13)    
+                fig.update_layout(title=title,showlegend=False,margin=dict(r=50))
+                if tmp == 0:
+                        fig.update_layout(height=height)
+                if category_order:
+                        fig.update_xaxes(dict(categoryarray=category_order))
+                        
+                figs.append(fig)
+                        
+        return figs
+        
+        
+    def web_plot(self, hue=None, dr_name='umap', size=None, markers=None,title = "",interactive=True, **scatterplot_params):
+            
+        if dr_name not in self.dr:
+            raise ValueError(f"Reduction '{dr_name}' not found in 'dr'.")
+    
+        if hue and hue not in self.samples:
+            raise ValueError(f"Column '{hue}' not found in 'samples'.")
+        if size and size not in self.samples:
+            raise ValueError(f"Column '{size}' not found in 'samples'.")
+        if markers and markers not in self.samples:
+            raise ValueError(f"Column '{markers}' not found in 'samples'.")
+    
+        # Retrieve the reduction data
+        dr_data = self.dr[dr_name]
+    
+        # Check if reduction data is 2D
+        if dr_data.shape[1] != 2:
+            raise ValueError("Reduction data must be 2-dimensional for plotting.")
+    
+        if interactive:
+            # Prepare the plot
+            scatter_args = {'x': dr_data[:, 0], 'y': dr_data[:, 1],
+                            'hover_name': self.samples.iloc[:,0], **scatterplot_params}
+            
+            if hue: scatter_args['color'] = self.samples[hue]
+            if size: scatter_args['size'] = self.samples[size]
+            if markers: scatter_args['symbol'] = self.samples[markers]
+            
+        
+            # Prepare the plot
+            ax=px.scatter(**scatter_args,labels={
+                     "x": f'{dr_name}_1',
+                     "y": f'{dr_name}_2'})
+            ax.update_layout(
+                title={
+                    'text': f"{title}",
+                    'x': 0.45,
+                    'xanchor': 'center'
+            })
+        
+        return ax
+
                          
         
 
@@ -2012,6 +2211,13 @@ def import_object(path):
         loaded_obj = pickle.load(file)
 
     return loaded_obj
+
+
+
+
+
+
+
 
 
 
