@@ -1745,6 +1745,12 @@ class Rodin_Class:
             self.features[effect_size].min() - self.features[effect_size].std() / 5,
             self.features[effect_size].max() + self.features[effect_size].std() / 5
         ])
+        fig.update_layout(
+        title={
+            'text': f"{title}",
+            'x': 0.45,
+            'xanchor': 'center'
+        })
     
         return fig
 
