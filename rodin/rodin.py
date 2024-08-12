@@ -1959,7 +1959,7 @@ class Rodin_Class:
 
     #####################    
     def web_boxplot(self, hue, dist='box', pathways=None, eids=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", zeros=True, cutoff_path=0.05,interactive=True,category_order=None, trend='ols',points='all',**boxplot_params):
-    
+
         figs = []
         
         # Handle the case where pathways, eids, and rows are all None
@@ -2000,16 +2000,17 @@ class Rodin_Class:
                     ncols=4
                 else:
                     nnrows=1
-                    ncols=max_input_rows   
+                    ncols=max_input_rows if max_input_rows<=4 else 4
                     
                 grid_dim = (nnrows, ncols)  # Default to one column with a row for each plot
     
                 nrows, ncols = grid_dim
                 if nnrows>1:
-                    height=nnrows*275
+                    height=nnrows*325
                     tmp=0
                 else:
                     tmp=1
+                    
               
                 #####    
                 if interactive:
@@ -2074,7 +2075,7 @@ class Rodin_Class:
     
             nrows, ncols = grid_dim
             if nnrows>1:
-                height=nnrows*275
+                height=nnrows*325
                 tmp=0
             else:
                 tmp=1
