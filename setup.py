@@ -22,7 +22,7 @@ setup(
         'pingouin>=0.4.0', 
         'tqdm>=4.62.3',  
         'dash-bio>=0.8.0',  
-        'dash==2.7.0',
+        'dash>=2.7.0',
         'pickle-mixin>=1.0.2',
         'networkx>=2.6',
         'plotly>=5.19.0',
