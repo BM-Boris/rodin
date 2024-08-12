@@ -1682,7 +1682,7 @@ class Rodin_Class:
     
         return figs or None
 
-    def volcano(self, p, effect_size, significance_line_value=0.05, annotation='index',
+    def volcano(self, p, effect_size, sign_line=0.05, annotation='index',
             effect_size_line=None, logp=True, title="", legend=None, **volcano_params):
         """
         Generates a volcano plot with customizable parameters.
@@ -1690,7 +1690,7 @@ class Rodin_Class:
         Parameters:
         p (str): Column name in 'self.features' representing p-values to be plotted on the y-axis.
         effect_size (str): Column name in 'self.features' representing effect sizes to be plotted on the x-axis.
-        significance_line_value (float, optional): Threshold value for the significance line. Default is 0.05.
+        sign_line (float, optional): Threshold value for the significance line. Default is 0.05.
         annotation (str, optional): Column name or index for annotating points on the plot. Default is 'index'.
         effect_size_line (list of bool, optional): A list indicating whether to draw effect size lines on the plot. Default is [False, False].
         logp (bool, optional): Whether to log-transform p-values (-log10). Default is True.
@@ -1716,7 +1716,7 @@ class Rodin_Class:
         # Log-transform p-values if necessary
         ylabel = f'-log10 [{p}]' if logp else p
         if logp:
-            significance_line_value = -np.log10(significance_line_value)
+            sign_line = -np.log10(sign_line)
         
         # Generate the plot
         fig = dash_bio.VolcanoPlot(
@@ -1727,7 +1727,7 @@ class Rodin_Class:
             gene=None,
             annotation=annotation,
             logp=logp,
-            significance_line_value=significance_line_value,
+            genomewideline_value=sign_line,
             effect_size_line=effect_size_line,
             effect_size_line_color='#EF553B',
             effect_size_line_width=1,
