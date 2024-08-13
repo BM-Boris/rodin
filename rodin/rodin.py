@@ -2154,7 +2154,6 @@ class Rodin_Class:
             ax.update_layout(
                 title={
                     'text': f"{title}",
-                    'x': 0.45,
                     'xanchor': 'center'
             })
         
