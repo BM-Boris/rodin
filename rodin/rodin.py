@@ -2103,7 +2103,11 @@ class Rodin_Class:
     
                     fig.update_xaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=10)
                 fig.update_annotations(font_size=13)    
-                fig.update_layout(title=title,showlegend=False,margin=dict(r=50))
+                fig.update_layout(title={
+                    'text': f"{title}",
+                    'x': 0.45,
+                    'xanchor': 'center'
+            },showlegend=False,margin=dict(r=50))
                 if tmp == 0:
                         fig.update_layout(height=height)
                 if category_order:
