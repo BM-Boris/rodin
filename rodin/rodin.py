@@ -122,7 +122,22 @@ class Rodin_Class:
             x_columns_set = set(self.X.columns)
             sample_ids_set = set(self.samples.iloc[:, 0])
             if x_columns_set != sample_ids_set:
-                raise ValueError("Column names in X do not match sample IDs in samples")
+                mismatched_x = x_columns_set - sample_ids_set
+                mismatched_sample_ids = sample_ids_set - x_columns_set
+                total_mismatches = len(mismatched_x) + len(mismatched_sample_ids)
+            
+                if total_mismatches <= 6:
+                    error_message = "Column names in X do not match sample IDs in samples."
+                    if mismatched_x:
+                        error_message += f" X columns not found in samples: {mismatched_x}."
+                    if mismatched_sample_ids:
+                        error_message += f" Sample IDs not found in X: {mismatched_sample_ids}."
+                else:
+                    error_message = (
+                        f"Column names in X do not match sample IDs in samples. "
+                        f"Total mismatches: {total_mismatches}."
+                    )
+                raise ValueError(error_message)
             if list(self.X.columns) != list(self.samples.iloc[:, 0]):
                 raise ValueError("The order of sample IDs must be the same in X and in samples")
 
