@@ -1573,9 +1573,9 @@ class Rodin_Class:
     
                         scatter_trace=go.Scatter(y=df,x=self.samples[column].values,mode="markers",hovertext=self.samples.iloc[:,0],**regplot_params)
                         fig.add_trace(scatter_trace, row=i//ncols+1, col=i%ncols+1)
-                        
-                        trendline = px.scatter(y=df,x=self.samples[column].values, trendline=trend,trendline_color_override='#BE9B7B').data[1]
-                        fig.add_trace(trendline,row=i//ncols+1, col=i%ncols+1)
+                        if trend:
+                            trendline = px.scatter(y=df,x=self.samples[column].values, trendline=trend,trendline_color_override='#BE9B7B').data[1]
+                            fig.add_trace(trendline,row=i//ncols+1, col=i%ncols+1)
                             
                         fig.update_yaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=0)
                     fig.update_annotations(font_size=13)    
@@ -2045,9 +2045,9 @@ class Rodin_Class:
                         else:
                             scatter_trace=go.Scatter(y=df,x=self.samples[hue].values,mode="markers",hovertext=self.samples.iloc[:,0],**boxplot_params)
                             fig.add_trace(scatter_trace, row=i//ncols+1, col=i%ncols+1)
-                            
-                            trendline = px.scatter(y=df,x=self.samples[hue].values, trendline=trend,trendline_color_override='#BE9B7B').data[1]
-                            fig.add_trace(trendline,row=i//ncols+1, col=i%ncols+1)
+                            if trend:
+                                trendline = px.scatter(y=df,x=self.samples[hue].values, trendline=trend,trendline_color_override='#BE9B7B').data[1]
+                                fig.add_trace(trendline,row=i//ncols+1, col=i%ncols+1)
     
                             
                         fig.update_xaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=10)
@@ -2112,9 +2112,9 @@ class Rodin_Class:
                     else:
                         scatter_trace=go.Scatter(y=df,x=self.samples[hue].values,mode="markers",hovertext=self.samples.iloc[:,0],**boxplot_params)
                         fig.add_trace(scatter_trace, row=i//ncols+1, col=i%ncols+1)
-                        
-                        trendline = px.scatter(y=df,x=self.samples[hue].values, trendline=trend,trendline_color_override='#BE9B7B').data[1]
-                        fig.add_trace(trendline,row=i//ncols+1, col=i%ncols+1)
+                        if trend:
+                            trendline = px.scatter(y=df,x=self.samples[hue].values, trendline=trend,trendline_color_override='#BE9B7B').data[1]
+                            fig.add_trace(trendline,row=i//ncols+1, col=i%ncols+1)
     
                     fig.update_xaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=10)
                 fig.update_annotations(font_size=13)    
