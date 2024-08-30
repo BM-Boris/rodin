@@ -76,8 +76,8 @@ rodin_instance.run_pca(n_components=2)
 rodin_instance.plot(dr_name='pca', hue='region', title='PCA Plot')
 
 # Pathway analysis 
-rodin_instance.analyze_pathways(pvals='p_value', stats='statistic')
-# Replace 'p_value' and 'statistic' with the actual column names in your 'features' DataFrame(rodin_instance.features)
+rodin_instance.analyze_pathways(pvals='p_value', stats='statistic',mode='positive')
+# Replace 'p_value' and 'statistic' with the actual column names in your 'features' DataFrame(rodin_instance.features) and provide Mass spectrometry analysis mode.
 ```
 
 #### Contact
