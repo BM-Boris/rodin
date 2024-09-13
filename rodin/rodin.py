@@ -2167,7 +2167,7 @@ class Rodin_Class:
                     'text': f"{title}",
                     'x': 0.45,
                     'xanchor': 'center'
-            })
+            },margin=dict(t=100))
         
         return ax
 
