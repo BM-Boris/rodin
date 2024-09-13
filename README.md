@@ -1,6 +1,8 @@
 ## **Rodin: Metabolomics Data Analysis Toolkit**
 
-_Rodin_ is a Python library specifically designed for the comprehensive processing and analysis of metabolomics data. It is a class-methods based toolkit, facilitating a range of tasks from basic data manipulation to advanced statistical evaluations, visualization, and metabolic pathway analysis. Now, most of its functionality is available in the Web App at https://rodin-meta.com.
+_Rodin_ is a Python library specifically designed for the comprehensive processing and analysis of metabolomics data. It is a class-methods based toolkit, facilitating a range of tasks from basic data manipulation to advanced statistical evaluations, visualization, and metabolic pathway analysis. 
+
+Now, most of its functionality is available in the Web App at https://rodin-meta.com.
 
 ### **Features**
 
