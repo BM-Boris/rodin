@@ -1698,7 +1698,7 @@ class Rodin_Class:
         return figs or None
 
     def volcano(self, p, effect_size, sign_line=0.05, annotation='index',
-            effect_size_line=None, logp=True, title="", legend=None, genomewideline_color='#EF553B', highlight_color='#119DFF', col='#2A3F5F',
+            effect_size_line=None, logp=True, title="", legend=None, genomewideline_color='#EF553B', effect_size_line_color='#EF553B', highlight_color='#119DFF', col='#2A3F5F',
                 effect_size_line_width=1, **volcano_params):
         """
         Generates a volcano plot with customizable parameters.
@@ -1712,6 +1712,7 @@ class Rodin_Class:
         logp (bool, optional): Whether to log-transform p-values (-log10). Default is True.
         title (str, optional): Title for the volcano plot. Default is an empty string.
         legend (dict, optional): Custom legend to be displayed on the plot. Default is None.
+        effect_size_line_color (str, optional): Color of the effect size lines. Default is '#EF553B'.
         genomewideline_color (str, optional): Color of the significance (genome-wide) line. Default is '#EF553B'.
         highlight_color (str, optional): Color used to highlight points on the plot. Default is '#119DFF'.
         col (str, optional): Default color for non-highlighted points on the plot. Default is '#2A3F5F'.
