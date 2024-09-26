@@ -19,7 +19,6 @@ setup(
         'matplotlib>=3.5.0',  
         'seaborn>=0.11.2', 
         'statsmodels>=0.13.0',  
-        'pingouin>=0.4.0', 
         'tqdm>=4.62.3',  
         'dash-bio>=0.8.0',  
         'dash>=2.7.0',
