@@ -10,9 +10,9 @@ import seaborn as sns
 from scipy import stats
 import statsmodels.stats.multitest as smm
 import statsmodels.api as sm
+import statsmodels.formula.api as smf
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.preprocessing import LabelEncoder
-import pingouin as pg
 from tqdm.auto import tqdm
 import dash_bio
 import plotly.express as px
@@ -626,7 +626,6 @@ class Rodin_Class:
             if col not in self.samples.columns:
                 raise ValueError(f"Column '{col}' not found in samples.")
     
-        # Extract class labels for the two factors
         class_labels_1 = self.samples[column_names[0]].values
         class_labels_2 = self.samples[column_names[1]].values
     
@@ -640,18 +639,26 @@ class Rodin_Class:
                 column_names[1]: class_labels_2
             })
     
-            current_p_vals = pg.anova(data=df_new, dv='Intensity', between=column_names, ss_type=1)['p-unc'][:-1].values
+            # Define the formula for two-way ANOVA with interaction
+            formula = f'Intensity ~ C({column_names[0]}) * C({column_names[1]})'
+            model = smf.ols(formula, data=df_new).fit()
+            anova_table = sm.stats.anova_lm(model, typ=1)
+    
+            current_p_vals = anova_table['PR(>F)'].values[:-1]  # Exclude residual row
             p_vals_list.append(current_p_vals)
     
         p_vals = np.array(p_vals_list)
-        anova_classes = pg.anova(data=df_new, dv='Intensity', between=column_names, ss_type=1)['Source'][:-1].values
+        anova_classes = anova_table.index.values[:-1]  # Exclude residual row
     
-        # Update the features DataFrame with ANOVA results
-        for i in range(len(anova_classes)):
-            p_value_col = f"p_value(twa) {anova_classes[i]}"
-            p_adj_col = f"p_adj(twa) {anova_classes[i]}"
-            self.features[p_value_col] = p_vals.T[i]
-            self.features[p_adj_col] = stats.false_discovery_control(ps=p_vals.T[i], method='bh')
+        _anova_classes = []
+        for name in anova_classes:
+            _anova_classes.append(name.replace('C(', '').replace(')', ''))
+    
+        for i in range(len(_anova_classes)):
+            p_value_col = f"p_value(twa) {_anova_classes[i]}"
+            p_adj_col = f"p_adj(twa) {_anova_classes[i]}"
+            self.features[p_value_col] = p_vals[:, i]
+            self.features[p_adj_col] = stats.false_discovery_control(ps=p_vals[:, i], method='bh')
     
         return self.features
 
