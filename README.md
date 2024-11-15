@@ -81,7 +81,7 @@ rodin_instance.plot(dr_name='pca', hue='region', title='PCA Plot')
 rodin_instance.analyze_pathways(pvals='p_value', stats='statistic',mode='positive')
 # Replace 'p_value' and 'statistic' with the actual column names in your 'features' DataFrame(rodin_instance.features) and provide Mass spectrometry analysis mode.
 ```
-The updated guide can be accessed here: https://bm-boris.github.io/rodin_guide/basics.html.
+The updated guide can be accessed here: https://bm-boris.github.io/rodin_guide/basics.html. Test data from the guide can be found at https://github.com/BM-Boris/rodin_guide/tree/main/data.
 
 #### Contact
 For questions, suggestions, or feedback, please contact boris.minasenko@emory.edu
