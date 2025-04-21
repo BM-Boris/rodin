@@ -397,78 +397,139 @@ class Rodin_Class:
         
         return ax
 
-    def transform(self, thresh=0.5, norm='q',scale=True, log=True):
+    def transform(
+            self,
+            thresh: float = 0.5,
+            norm: str | None = "q",
+            scale: str | bool | None = "uv",
+            log: bool = True
+        ):
         """
-        Transforms the X matrix by filling missing values, applying threshold filtering, normalization, scaling, and log transformation and removes features with constant values across all samples and duplicates.
+        Pre‑processes an omics feature matrix (self.X) by
+        1. Filling missing values
+        2. Filtering features / samples by missing‑value thresholds
+        3. Applying optional normalisation
+        4. Applying optional scaling
+        5. log‑transforming
+        6. Removing constant or duplicated features
     
-        Parameters:
-        - thresh (float, optional): Threshold for missing values. Defaults to 0.5.
-        - norm (str, optional): Normalization method, either 'q' for Quantile or 't' for Total Intensity, or None to skip normalization. Defaults to 'q'.
-        - scale (bool, optional): Whether to scale rows to unit variance. Defaults to True.
-        - log (bool, optional): Whether to apply log transformation. Defaults to True.
+        Parameters
+        ----------
+        thresh : float, default 0.5
+            Maximum fraction of missing values (zeros) allowed per feature
+            before the feature is dropped.
+        norm : {'q','t','median','mean','z',None}, default 'q'
+            Normalisation method:
+              • 'q'      – Quantile normalisation across samples  
+              • 't'      – Total intensity (column sum) normalisation  
+              • 'median' – Divide by sample median, then multiply by global median  
+              • 'mean'   – As above but with the mean   
+              • None     – Skip normalisation
+        scale : {'uv','pareto','minmax',None} or bool, default 'uv'
+            Scaling method applied after normalisation:
+              • 'uv'     – Unit‑variance (divide by row SD)  
+              • 'pareto' – Divide by √SD   
+              • 'minmax' – Row‑wise 0…1 scaling  
+              • None     – Skip scaling  
+            Back‑compat: True → 'uv', False → None.
+        log : bool, default True
+            Whether to apply log2(x + 1) transformation.
+    
+        Returns
+        -------
+        self : Rodin_Class
+            The object with its X and features attributes updated.
+        """
 
-        Raises:
-        - ValueError: If X is None or norm is not a valid option.
     
-        Returns:
-        - Rodin_Class: The current object with transformed X matrix.
-        """
-        
+        # ------------------------------------------------------------------ #
+        # Sanity checks                                                      #
+        # ------------------------------------------------------------------ #
         if self.X is None:
-            raise ValueError("The X attribute is empty. Please assign a DataFrame to X before calling transform.")
-
-        # Fill missing values with zeros
-        df_features_processed = self.X.fillna(0.0)
-        thresh_cols=1
-        # Filter based on threshold for missing values (rows and columns)
-        row_mask = (df_features_processed == 0).mean(axis=1) <= thresh
-        col_mask = (df_features_processed == 0).mean(axis=0) <= thresh_cols
-        df_features_processed = df_features_processed.loc[row_mask, col_mask]
-
-        # Normalization
-        if norm is not None:
-            if norm == 'q':
-                # Quantile normalization
-                df_sorted = np.sort(df_features_processed, axis=0)
-                df_mean = df_sorted.mean(axis=1)
-                df_ranked = df_features_processed.rank(method="min").astype(int) - 1
-                df_norm = pd.DataFrame(df_mean[df_ranked.values], index=df_features_processed.index,
-                                       columns=df_features_processed.columns)
-            elif norm == 't':
-                # Total intensity normalization
-                df_norm = df_features_processed.div(df_features_processed.sum(axis=0), axis=1) * 1e5
-            else:
-                raise ValueError('Provide a valid normalization method: "q" for Quantile Normalization or "t" for Total Intensity Normalization')
-        else:
-            df_norm = df_features_processed
-            
-        if scale:
-            row_stds = df_norm.std(axis=1)
-            row_stds[row_stds == 0] = 1
-            df_norm = df_norm.div(row_stds, axis=0)
-        
-        # Log transformation
+            raise ValueError("self.X is empty – assign a DataFrame before calling transform().")
+    
+        # ------------------------------------------------------------------ #
+        # 1. Fill NAs and filter by missingness                              #
+        # ------------------------------------------------------------------ #
+        df = self.X.fillna(0.0)
+        row_mask = (df == 0).mean(axis=1) <= thresh
+        col_mask = (df == 0).mean(axis=0) <= 1.0          
+        df = df.loc[row_mask, col_mask]
+    
+        # ------------------------------------------------------------------ #
+        # 2. Normalisation                                                   #
+        # ------------------------------------------------------------------ #
+        norm = None if norm is None else norm.lower()
+        if norm == 'q':                                     # Quantile
+            sorted_vals = np.sort(df, axis=0)
+            mean_rank   = sorted_vals.mean(axis=1)
+            ranks       = df.rank(method="min").astype(int) - 1
+            df = pd.DataFrame(mean_rank[ranks.values], index=df.index, columns=df.columns)
+    
+        elif norm == 't':                                   # Total intensity
+            df = df.div(df.sum(axis=0), axis=1) * 1e5
+    
+        elif norm == 'median':                              # Median scaling
+            med_per_sample = df.median(axis=0)
+            grand_median   = med_per_sample.median()
+            df = df.div(med_per_sample, axis=1) * grand_median
+    
+        elif norm == 'mean':                                # Mean scaling
+            mean_per_sample = df.mean(axis=0)
+            grand_mean      = mean_per_sample.mean()
+            df = df.div(mean_per_sample, axis=1) * grand_mean
+    
+        elif norm is not None:
+            raise ValueError(f'Unknown norm="{norm}". Choose q, t, median, mean or None.')
+    
+        # ------------------------------------------------------------------ #
+        # 3. Scaling                                                         #
+        # ------------------------------------------------------------------ #
+        if isinstance(scale, bool):
+            scale = 'uv' if scale else None
+        scale = None if scale is None else str(scale).lower()
+    
+        if scale == 'uv':                                    # Unit variance
+            stds = df.std(axis=1).replace(0, 1)
+            df = df.div(stds, axis=0)
+    
+        elif scale == 'pareto':                              # Pareto scaling
+            stds = np.sqrt(df.std(axis=1)).replace(0, 1)
+            df = df.div(stds, axis=0)
+    
+        elif scale == 'minmax':                              # 0–1 scaling
+            mins   = df.min(axis=1)
+            ranges = (df.max(axis=1) - mins).replace(0, 1)
+            df = df.sub(mins, axis=0).div(ranges, axis=0)
+    
+        elif scale is not None:
+            raise ValueError(f'Unknown scale="{scale}". Choose uv, pareto, minmax or None.')
+    
+        # ------------------------------------------------------------------ #
+        # 4. Log transformation                                              #
+        # ------------------------------------------------------------------ #
         if log:
-            df_norm = np.log2(df_norm + 1)
-
-        # Remove rows with constant values across all samples and duplicates
-        df_features_processed = df_norm.loc[df_norm.nunique(axis=1) > 1]
-        df_features_processed = df_features_processed.drop_duplicates(ignore_index=False)
-
-
-        filtered_feature_count = self.X.shape[0] - df_features_processed.shape[0]
-        print(f"Number of features filtered: {filtered_feature_count}")
-        
-        # Use the internal attribute to bypass validation temporarily
-        self._X = df_features_processed  # Use the internal attribute to bypass validation temporarily
-        self._features = self.features.loc[self._X.index]
-
-        # Reapply validation if needed
-        self.X = self._X
-        self.features = self._features
-
-
+            df = np.log2(df + 1)
+    
+        # ------------------------------------------------------------------ #
+        # 5. Remove constant and duplicate features                          #
+        # ------------------------------------------------------------------ #
+        df = df.loc[df.nunique(axis=1) > 1]
+        df = df.drop_duplicates(ignore_index=False)
+    
+        filtered = self.X.shape[0] - df.shape[0]
+        print(f"Number of features filtered: {filtered}")
+    
+        # ------------------------------------------------------------------ #
+        # 6. Update object state                                             #
+        # ------------------------------------------------------------------ #
+        self._X        = df
+        self._features = self.features.loc[df.index]        # keep metadata aligned
+        self.X         = self._X                            # triggers validators
+        self.features  = self._features
+    
         return self
+
 
     def oneway_anova(self, column_name):
         """
