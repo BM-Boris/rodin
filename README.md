@@ -87,7 +87,7 @@ The updated guide can be accessed here: https://bm-boris.github.io/rodin_guide/b
 #### Contact
 For questions, suggestions, or feedback, please contact boris.minasenko@emory.edu
 
-## Citation
+### Citation
 
 If you use **Rodin** in your research, please cite the following paper:
 
