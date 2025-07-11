@@ -1,4 +1,5 @@
 ## **Rodin: Metabolomics Data Analysis Toolkit**
+[![DOI](https://img.shields.io/badge/DOI-10.1093%2Fbioadv%2Fvbaf088-blue.svg)](https://doi.org/10.1093/bioadv/vbaf088)
 
 _Rodin_ is a Python library specifically designed for the comprehensive processing and analysis of metabolomics data. It is a class-methods based toolkit, facilitating a range of tasks from basic data manipulation to advanced statistical evaluations, visualization, and metabolic pathway analysis. 
 
@@ -85,4 +86,12 @@ The updated guide can be accessed here: https://bm-boris.github.io/rodin_guide/b
 
 #### Contact
 For questions, suggestions, or feedback, please contact boris.minasenko@emory.edu
+
+## Citation
+
+If you use **Rodin** in your research, please cite the following paper:
+
+Minasenko B, Wang D, Cirillo P, Krigbaum N, Cohn B, Jones DP, Collins JM, Hu X.  
+*Rodin: a streamlined metabolomics data analysis and visualization tool.* **Bioinformatics Advances**. 2025; 5(1): vbaf088.  
+https://doi.org/10.1093/bioadv/vbaf088
 
