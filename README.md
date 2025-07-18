@@ -32,8 +32,11 @@ conda create -n rodin_env python=3.11
 conda activate rodin_env
 ```
 #### Install Rodin
+```bash
+pip install rodin
+```
 
-Install Rodin directly from GitHub:
+or install Rodin directly from GitHub:
 ```bash
 pip install git+https://github.com/BM-Boris/rodin.git
 ```
