@@ -2285,6 +2285,42 @@ def create_object_csv(file_path_features, file_path_classes,feat_sep='\t',class_
 
     return Rodin_Class(X=X, features=features,samples=samples)
 
+def create(features_file, meta_file=None, feat_sep='\t', meta_sep='\t', mode='mzrt'):
+    """
+    Creates a Rodin_Class object from CSV files for features and classes.
+
+    Parameters:
+    - features_file (str): File path to the CSV file containing features.
+    - meta_file (str, optional): File path to the CSV file containing class information.
+    - feat_sep (str, optional): Separator used in the features CSV file. Defaults to '\t'.
+    - meta_sep (str, optional): Separator used in the classes CSV file. Defaults to '\t'.
+    - mode (str, optional): Feature status mode indicating the layout of the feature table. Use 'mzrt' if the first two columns are mass-to-charge ratio (mz) and retention time (rt), or 'ann' if one column is dedicated to annotations.
+   
+    Returns:
+    - Rodin_Class: A new instance of Rodin_Class populated with data from the provided CSV files.
+    """
+    
+    # Load the data
+    data = pd.read_csv(features_file, sep=feat_sep)
+
+    # Extract features DataFrame
+    if mode == 'ann':
+        features = data.iloc[:, :1]
+        X = data.iloc[:, 1:]
+    else:
+        features = data.iloc[:, :2]
+        features = features.astype('float')
+        X = data.iloc[:, 2:]
+
+    # Build samples (metadata)
+    if meta_file is None:
+        samples = pd.DataFrame({'sample_id': X.columns.astype(str)})
+    else:
+        samples = pd.read_csv(meta_file, sep=meta_sep)
+        samples.iloc[:, 0] = samples.iloc[:, 0].astype(str)
+
+    return Rodin_Class(X=X, features=features, samples=samples)
+
 
 def import_object(path):
     """
