@@ -2375,8 +2375,6 @@ def create(features_file, meta_file=None, feat_sep='\t', meta_sep='\t', mode='mz
     # Report order change
     if prev_aligned_order != keep_ids:
         print("[Rodin] Column order changed to the order of metadata.")
-    else:
-        print("[Rodin] Column order already matched metadata.")
 
     print(f"[Rodin] Final: {X.shape[1]} samples, {X.shape[0]} features; metadata rows: {samples.shape[0]}.")
 
