@@ -2287,37 +2287,98 @@ def create_object_csv(file_path_features, file_path_classes,feat_sep='\t',class_
 
 def create(features_file, meta_file=None, feat_sep='\t', meta_sep='\t', mode='mzrt'):
     """
-    Creates a Rodin_Class object from CSV files for features and classes.
+    Creates a Rodin_Class object from CSV files for features and metadata.
+
+    Behavior:
+    - Matches sample IDs between X (columns) and metadata (first column).
+    - Drops samples not present on both sides.
+    - Reorders X columns and metadata rows to exactly match the metadata order.
+    - Prints counts of removed samples and lists them if <= 10.
+    - Prints whether column order was changed to metadata order.
 
     Parameters:
-    - features_file (str): File path to the CSV file containing features.
-    - meta_file (str, optional): File path to the CSV file containing class information.
-    - feat_sep (str, optional): Separator used in the features CSV file. Defaults to '\t'.
-    - meta_sep (str, optional): Separator used in the classes CSV file. Defaults to '\t'.
-    - mode (str, optional): Feature status mode indicating the layout of the feature table. Use 'mzrt' if the first two columns are mass-to-charge ratio (mz) and retention time (rt), or 'ann' if one column is dedicated to annotations.
-   
+    - features_file (str): Path to the features table.
+    - meta_file (str, optional): Path to the metadata table (first column = sample_id).
+    - feat_sep (str, optional): Separator for the features file. Default: '\t'.
+    - meta_sep (str, optional): Separator for the metadata file. Default: '\t'.
+    - mode (str, optional): 'mzrt' -> first two columns are mz, rt (floats).
+                            'ann'  -> first column is annotations.
+
     Returns:
-    - Rodin_Class: A new instance of Rodin_Class populated with data from the provided CSV files.
+    - Rodin_Class: Populated object with aligned X, features, and samples.
     """
-    
-    # Load the data
+
+    # Load features
     data = pd.read_csv(features_file, sep=feat_sep)
 
-    # Extract features DataFrame
+    # Split features vs X
     if mode == 'ann':
         features = data.iloc[:, :1]
         X = data.iloc[:, 1:]
     else:
-        features = data.iloc[:, :2]
-        features = features.astype('float')
+        features = data.iloc[:, :2].astype('float')
         X = data.iloc[:, 2:]
 
-    # Build samples (metadata)
+    # Build/load samples (metadata)
     if meta_file is None:
         samples = pd.DataFrame({'sample_id': X.columns.astype(str)})
     else:
         samples = pd.read_csv(meta_file, sep=meta_sep)
-        samples.iloc[:, 0] = samples.iloc[:, 0].astype(str)
+
+    # Ensure string IDs
+    X.columns = X.columns.astype(str)
+    id_col = samples.columns[0]
+    samples[id_col] = samples[id_col].astype(str)
+
+    # Handle duplicate IDs in metadata (keep first)
+    dup_meta = samples[id_col][samples[id_col].duplicated()].unique().tolist()
+    if len(dup_meta) > 0:
+        print(f"[Rodin] Warning: {len(dup_meta)} duplicate sample IDs in metadata; keeping first occurrence.")
+        if len(dup_meta) <= 10:
+            print(f"[Rodin] Duplicates: {', '.join(map(str, dup_meta))}")
+        samples = samples.drop_duplicates(subset=id_col, keep='first')
+
+    x_ids   = list(X.columns)
+    meta_ids = list(samples[id_col])
+
+    # What will be removed
+    removed_from_X    = [sid for sid in x_ids if sid not in meta_ids]     # present in X but not in meta
+    removed_from_meta = [sid for sid in meta_ids if sid not in x_ids]     # present in meta but not in X
+
+    # Print removals
+    if removed_from_X:
+        print(f"[Rodin] Samples in X but missing in metadata: {len(removed_from_X)} removed.")
+        if len(removed_from_X) <= 10:
+            print(f"[Rodin] Removed from X: {', '.join(removed_from_X)}")
+
+    if removed_from_meta:
+        print(f"[Rodin] Samples in metadata but missing in X: {len(removed_from_meta)} removed.")
+        if len(removed_from_meta) <= 10:
+            print(f"[Rodin] Removed from metadata: {', '.join(removed_from_meta)}")
+
+    # Keep intersection, ordered by metadata
+    keep_ids = [sid for sid in meta_ids if sid in x_ids]
+
+    if len(keep_ids) == 0:
+        raise ValueError("[Rodin] No overlapping sample IDs between features (X) and metadata.")
+
+    # Track prior aligned order to report if changed
+    prev_aligned_order = [sid for sid in x_ids if sid in meta_ids]
+
+    # Apply filtering & reordering
+    X = X.loc[:, keep_ids]
+    samples = (samples[samples[id_col].isin(keep_ids)]
+                     .set_index(id_col)
+                     .loc[keep_ids]
+                     .reset_index())
+
+    # Report order change
+    if prev_aligned_order != keep_ids:
+        print("[Rodin] Column order changed to the order of metadata.")
+    else:
+        print("[Rodin] Column order already matched metadata.")
+
+    print(f"[Rodin] Final: {X.shape[1]} samples, {X.shape[0]} features; metadata rows: {samples.shape[0]}.")
 
     return Rodin_Class(X=X, features=features, samples=samples)
 
