@@ -2319,7 +2319,19 @@ def _sep(src, hint=None) -> str:
         return ","
     raise ValueError("Cannot detect separator (no ',' or '\t' found).")
 
-def create(features_file, meta_file=None, feat_sep=None, meta_sep=None, mode='mzrt'):
+def _auto_mode(df, hint=None) -> str:
+    if hint in ("mzrt", "ann"):
+        return hint
+    # header hints
+    c0 = str(df.columns[0]).lower() if df.shape[1] >= 1 else ""
+    c1 = str(df.columns[1]).lower() if df.shape[1] >= 2 else ""
+    if any(k in c0 for k in ("mz", "m/z", "mass")) and any(k in c1 for k in ("rt", "retention","time","r/t")):
+        return "mzrt"
+
+    col0_num = pd.to_numeric(df.iloc[:, 0], errors="coerce").notna().mean() if df.shape[1] >= 1 else 0.0
+    return "mzrt" if col0_num >= 0.8 else "ann"
+
+def create(features_file, meta_file=None, feat_sep=None, meta_sep=None, mode=None):
     """
     Creates a Rodin_Class object from CSV files for features and metadata.
 
@@ -2335,7 +2347,8 @@ def create(features_file, meta_file=None, feat_sep=None, meta_sep=None, mode='mz
     - meta_file (str, optional): Path to the metadata table (first column = sample_id).
     - feat_sep (str, optional): Separator for the features file. Default: None -> automatical detection.
     - meta_sep (str, optional): Separator for the metadata file. Default: None -> automatical detection.
-    - mode (str, optional): 'mzrt' -> first two columns are mz, rt (floats).
+    - mode (str, optional): None -> automatical detection.
+                            'mzrt' -> first two columns are mz, rt (floats).
                             'ann'  -> first column is annotations.
 
     Returns:
@@ -2347,7 +2360,10 @@ def create(features_file, meta_file=None, feat_sep=None, meta_sep=None, mode='mz
     data = pd.read_csv(features_file, sep=used_feat_sep)
 
     # Split features vs X
-    if mode == 'ann':
+    mode_=_auto_mode(data,hint=mode)
+    print(f"[Rodin] Mode: {repr(mode_)}")
+    
+    if mode_ == 'ann':
         features = data.iloc[:, :1]
         X = data.iloc[:, 1:]
     else:
@@ -2416,8 +2432,10 @@ def create(features_file, meta_file=None, feat_sep=None, meta_sep=None, mode='mz
         print("[Rodin] Column order changed to the order of metadata.")
 
     print(f"[Rodin] Final: {X.shape[1]} samples, {X.shape[0]} features; metadata rows: {samples.shape[0]}.")
+    obj=Rodin_Class(X=X, features=features, samples=samples)
+    obj.uns['mode']=mode_
 
-    return Rodin_Class(X=X, features=features, samples=samples)
+    return obj
 
 
 def import_object(path):
