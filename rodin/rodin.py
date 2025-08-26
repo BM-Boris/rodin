@@ -22,6 +22,7 @@ import pickle
 from .mummichog.functional_analysis import *
 from io import StringIO
 import re
+import os
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import warnings
@@ -2285,7 +2286,40 @@ def create_object_csv(file_path_features, file_path_classes,feat_sep='\t',class_
 
     return Rodin_Class(X=X, features=features,samples=samples)
 
-def create(features_file, meta_file=None, feat_sep='\t', meta_sep='\t', mode='mzrt'):
+def _sep(src, hint=None) -> str:
+    if hint is not None:
+        return hint
+
+    if isinstance(src, (str, os.PathLike)):
+        with open(src, "rb") as fh:
+            line = fh.readline()
+    else:
+        pos = src.tell() if hasattr(src, "tell") else None
+        if hasattr(src, "seek"):
+            src.seek(0)
+        line = src.readline()
+        if isinstance(line, str):
+            pass
+        else:
+            try:
+                line = line.decode("utf-8-sig", "replace")
+            except Exception:
+                line = line.decode("utf-8", "replace")
+        if pos is not None and hasattr(src, "seek"):
+            src.seek(pos)
+    if isinstance(line, bytes):
+        try:
+            line = line.decode("utf-8-sig", "replace")
+        except Exception:
+            line = line.decode("utf-8", "replace")
+
+    if "\t" in line:
+        return "\t"
+    if "," in line:
+        return ","
+    raise ValueError("Cannot detect separator (no ',' or '\t' found).")
+
+def create(features_file, meta_file=None, feat_sep=None, meta_sep=None, mode='mzrt'):
     """
     Creates a Rodin_Class object from CSV files for features and metadata.
 
@@ -2299,8 +2333,8 @@ def create(features_file, meta_file=None, feat_sep='\t', meta_sep='\t', mode='mz
     Parameters:
     - features_file (str): Path to the features table.
     - meta_file (str, optional): Path to the metadata table (first column = sample_id).
-    - feat_sep (str, optional): Separator for the features file. Default: '\t'.
-    - meta_sep (str, optional): Separator for the metadata file. Default: '\t'.
+    - feat_sep (str, optional): Separator for the features file. Default: None -> automatical detection.
+    - meta_sep (str, optional): Separator for the metadata file. Default: None -> automatical detection.
     - mode (str, optional): 'mzrt' -> first two columns are mz, rt (floats).
                             'ann'  -> first column is annotations.
 
@@ -2308,22 +2342,27 @@ def create(features_file, meta_file=None, feat_sep='\t', meta_sep='\t', mode='mz
     - Rodin_Class: Populated object with aligned X, features, and samples.
     """
 
-    # Load features
-    data = pd.read_csv(features_file, sep=feat_sep)
+    # Features
+    used_feat_sep = _sep(features_file, feat_sep)
+    data = pd.read_csv(features_file, sep=used_feat_sep)
 
     # Split features vs X
     if mode == 'ann':
         features = data.iloc[:, :1]
         X = data.iloc[:, 1:]
     else:
-        features = data.iloc[:, :2].astype('float')
+        features = data.iloc[:, :2].astype(float)
         X = data.iloc[:, 2:]
 
-    # Build/load samples (metadata)
+    # Metadata
     if meta_file is None:
         samples = pd.DataFrame({'sample_id': X.columns.astype(str)})
+        used_meta_sep = None
     else:
-        samples = pd.read_csv(meta_file, sep=meta_sep)
+        used_meta_sep = _sep(meta_file, meta_sep)
+        samples = pd.read_csv(meta_file, sep=used_meta_sep)
+
+    print(f"[Rodin] Features sep: {repr(used_feat_sep)}; Metadata sep: {repr(used_meta_sep)}")
 
     # Ensure string IDs
     X.columns = X.columns.astype(str)
