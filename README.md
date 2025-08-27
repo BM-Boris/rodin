@@ -1,13 +1,13 @@
 ## **Rodin: Metabolomics Data Analysis Toolkit**
 [![DOI](https://img.shields.io/badge/DOI-10.1093%2Fbioadv%2Fvbaf088-blue.svg)](https://doi.org/10.1093/bioadv/vbaf088)
 
-_Rodin_ is a Python library specifically designed for the comprehensive processing and analysis of metabolomics data. It is a class-methods based toolkit, facilitating a range of tasks from basic data manipulation to advanced statistical evaluations, visualization, and metabolic pathway analysis. 
+_Rodin_ is a Python library specifically designed for the comprehensive processing and analysis of metabolomics data and other omics data. It is a class-methods based toolkit, facilitating a range of tasks from basic data manipulation to advanced statistical evaluations, visualization, and metabolic pathway analysis. 
 
 Now, most of its functionality is available in the Web App at https://rodin-meta.com.
 
 ### **Features**
 
-- **Efficient Data Handling**: Streamlined manipulation and transformation of metabolomics data.
+- **Efficient Data Handling**: Streamlined manipulation and transformation of metabolomics data and other omics.
 - **Robust Statistical Analysis**: Includes ANOVA, t-tests, and more.
 - **Machine Learning Methods**: Random Forest, Logistic and Linear regressions.
 - **Advanced Dimensionality Reduction**: Techniques like PCA, t-SNE, UMAP.
@@ -16,21 +16,12 @@ Now, most of its functionality is available in the Web App at https://rodin-meta
 
 ### **Installation**
 
-We recommend installing Rodin in a separate Conda environment for effective dependency management.
+We recommend installing Rodin in a separate environment for effective dependency management.
 
 #### Prerequisites
 
 - Python (3.10 or higher)
-- Conda (Anaconda or Miniconda)
 
-#### Setting Up a Conda Environment
-
-Create and activate a new Conda environment:
-
-```bash
-conda create -n rodin_env python=3.11
-conda activate rodin_env
-```
 #### Install Rodin
 ```bash
 pip install rodin
@@ -52,7 +43,7 @@ features_path = 'path/to/features.csv'
 classes_path = 'path/to/class_labels.csv'
 
 # Creating an instance of Rodin_Class
-rodin_instance = rodin.create_object_csv(features_path, classes_path)
+rodin_instance = rodin.create(features_path, classes_path)
 
 # Transform the data (imputation, normalization, and log-transformation steps)
 rodin_instance.transform()
@@ -74,12 +65,18 @@ rodin_instance.rf_regress('age')
 #Slice the whole object using the pattern from pandas
 rodin_instance = rodin_instance[rodin_instance.features[rodin_instance.features['imp(rf) age']>0]]
 
-# Perform PCA with 2 principal components (umap and t-sne are available as well)
+# Perform PCA with 2 principal components (UMAP and t-SNE are available as well)
 rodin_instance.run_pca(n_components=2)
 
 # Plotting the PCA results
 # 'region' column in the 'samples' DataFrame is used for coloring the points
 rodin_instance.plot(dr_name='pca', hue='region', title='PCA Plot')
+# Volcano Plot
+rodin_instance.volcano(p='p_adj(owa) region', effect_size='lfc (New York vs Georgia)', sign_line=0.01)
+# Box Plot
+rodin_instance.boxplot(rows=[9999,4561], hue='region')
+# Clustergram 
+rodin_instance.clustergram(hue='sex',standardize='row')
 
 # Pathway analysis 
 rodin_instance.analyze_pathways(pvals='p_value', stats='statistic',mode='positive')
