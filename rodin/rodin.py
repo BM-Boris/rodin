@@ -32,6 +32,7 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.model_selection import cross_val_predict
 from sklearn.metrics import classification_report
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from urllib.request import urlopen 
 sns.set_theme()
 
 class Rodin_Class:
@@ -2291,8 +2292,12 @@ def _sep(src, hint=None) -> str:
         return hint
 
     if isinstance(src, (str, os.PathLike)):
-        with open(src, "rb") as fh:
-            line = fh.readline()
+        if src.startswith(("http://", "https://")):
+            with urlopen(src) as fh:
+                line = fh.readline()
+        else:
+            with open(src, "rb") as fh:
+                line = fh.readline()
     else:
         pos = src.tell() if hasattr(src, "tell") else None
         if hasattr(src, "seek"):
