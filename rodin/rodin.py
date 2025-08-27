@@ -2436,7 +2436,7 @@ def create(features_file, meta_file=None, feat_sep=None, meta_sep=None, mode=Non
     if prev_aligned_order != keep_ids:
         print("[Rodin] Column order changed to the order of metadata.")
 
-    print(f"[Rodin] Final: {X.shape[1]} samples, {X.shape[0]} features; metadata rows: {samples.shape[0]}.")
+    print(f"[Rodin] Final: {X.shape[1]} samples, {X.shape[0]} features")
     obj=Rodin_Class(X=X, features=features, samples=samples)
     obj.uns['mode']=mode_
     obj.uns['file_type'] = 'metabolomics' if mode_ == 'mzrt' else 'other'
