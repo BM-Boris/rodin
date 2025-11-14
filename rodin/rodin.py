@@ -2346,36 +2346,54 @@ def create(features_file, meta_file=None, feat_sep=None, meta_sep=None, mode=Non
     - Reorders X columns and metadata rows to exactly match the metadata order.
     - Prints counts of removed samples and lists them if <= 10.
     - Prints whether column order was changed to metadata order.
-
-    Parameters:
-    - features_file (str): Path to the features table.
-    - meta_file (str, optional): Path to the metadata table (first column = sample_id).
-    - feat_sep (str, optional): Separator for the features file. Default: None -> automatical detection.
-    - meta_sep (str, optional): Separator for the metadata file. Default: None -> automatical detection.
-    - mode (str, optional): None -> automatical detection.
-                            'mzrt' -> first two columns are mz, rt (floats).
-                            'ann'  -> first column is annotations.
-
-    Returns:
-    - Rodin_Class: Populated object with aligned X, features, and samples.
+    - If the very first column is '#', use it as feature index.
+    - Move columns whose names start with any of:
+           p_val, p_adj, umap, pca, t-sne, imp, lfc, vip  from X to features.
     """
-
-    # Features
+    # --- Read features table
     used_feat_sep = _sep(features_file, feat_sep)
     data = pd.read_csv(features_file, sep=used_feat_sep)
 
-    # Split features vs X
-    mode_=_auto_mode(data,hint=mode)
-    print(f"[Rodin] Mode: {repr(mode_)}")
-    
-    if mode_ == 'ann':
-        features = data.iloc[:, :1]
-        X = data.iloc[:, 1:]
-    else:
-        features = data.iloc[:, :2].astype(float)
-        X = data.iloc[:, 2:]
+    # 
+    feature_index = None
+    if len(data.columns) > 0 and str(data.columns[0]).strip() == '#':
+        feature_index = data.iloc[:, 0].astype(str)
+        data = data.iloc[:, 1:].copy()
+        dups = feature_index[feature_index.duplicated()].unique().tolist()
+        if len(dups) > 0:
+            print(f"[Rodin] Warning: leading '#' index has {len(dups)} duplicate value(s).")
+            if len(dups) <= 10:
+                print(f"[Rodin] Duplicate index values: {', '.join(map(str, dups))}")
+        print("[Rodin] Feature index set from leading '#' column.")
 
-    # Metadata
+    # --- Mode detection on cleaned columns (so '#' не ломает авто-режим)
+    mode_ = _auto_mode(data, hint=mode)
+    print(f"[Rodin] Mode: {repr(mode_)}")
+
+    # --- Split features vs X
+    if mode_ == 'ann':
+        features = data.iloc[:, :1].copy()
+        X = data.iloc[:, 1:].copy()
+    else:
+        features = data.iloc[:, :2].astype(float).copy()
+        X = data.iloc[:, 2:].copy()
+
+    # --- If we captured '#' index, apply it to both features and X (row index)
+    if feature_index is not None:
+        if len(feature_index) != len(features):
+            raise ValueError("[Rodin] Length mismatch: '#' index length does not match number of rows.")
+        features.index = feature_index.values
+        X.index = feature_index.values
+
+    # --- Move per-feature extra columns from X to features by prefixes (case-insensitive)
+    _prefixes = ("p_val", "p_adj", "umap", "pca", "t-sne", "imp", "lfc", "vip")
+    x_cols_lower = {c: str(c).lower() for c in X.columns}
+    extra_cols = [c for c, lc in x_cols_lower.items() if any(lc.startswith(p) for p in _prefixes)]
+    if extra_cols:
+        features = pd.concat([features, X.loc[:, extra_cols]], axis=1)
+        X = X.drop(columns=extra_cols)
+
+    # --- Metadata
     if meta_file is None:
         samples = pd.DataFrame({'sample_id': X.columns.astype(str)})
         used_meta_sep = None
@@ -2383,14 +2401,22 @@ def create(features_file, meta_file=None, feat_sep=None, meta_sep=None, mode=Non
         used_meta_sep = _sep(meta_file, meta_sep)
         samples = pd.read_csv(meta_file, sep=used_meta_sep)
 
+        # --- Handle '#' as index in metadata (same as features)
+        if len(samples.columns) > 0 and str(samples.columns[0]).strip() == '#':
+            meta_index = samples.iloc[:, 0].astype(str)
+            samples = samples.iloc[:, 1:].copy()
+            samples.index = meta_index
+            print("[Rodin] Metadata index set from leading '#' column.")
+
+
     print(f"[Rodin] Features sep: {repr(used_feat_sep)}; Metadata sep: {repr(used_meta_sep)}")
 
-    # Ensure string IDs
+    # --- Ensure string IDs
     X.columns = X.columns.astype(str)
     id_col = samples.columns[0]
     samples[id_col] = samples[id_col].astype(str)
 
-    # Handle duplicate IDs in metadata (keep first)
+    # --- Handle duplicate IDs in metadata (keep first)
     dup_meta = samples[id_col][samples[id_col].duplicated()].unique().tolist()
     if len(dup_meta) > 0:
         print(f"[Rodin] Warning: {len(dup_meta)} duplicate sample IDs in metadata; keeping first occurrence.")
@@ -2398,14 +2424,13 @@ def create(features_file, meta_file=None, feat_sep=None, meta_sep=None, mode=Non
             print(f"[Rodin] Duplicates: {', '.join(map(str, dup_meta))}")
         samples = samples.drop_duplicates(subset=id_col, keep='first')
 
-    x_ids   = list(X.columns)
+    x_ids = list(X.columns)
     meta_ids = list(samples[id_col])
 
-    # What will be removed
-    removed_from_X    = [sid for sid in x_ids if sid not in meta_ids]     # present in X but not in meta
-    removed_from_meta = [sid for sid in meta_ids if sid not in x_ids]     # present in meta but not in X
+    # --- What will be removed
+    removed_from_X = [sid for sid in x_ids if sid not in meta_ids]
+    removed_from_meta = [sid for sid in meta_ids if sid not in x_ids]
 
-    # Print removals
     if removed_from_X:
         print(f"[Rodin] Samples in X but missing in metadata: {len(removed_from_X)} removed.")
         if len(removed_from_X) <= 10:
@@ -2416,32 +2441,31 @@ def create(features_file, meta_file=None, feat_sep=None, meta_sep=None, mode=Non
         if len(removed_from_meta) <= 10:
             print(f"[Rodin] Removed from metadata: {', '.join(removed_from_meta)}")
 
-    # Keep intersection, ordered by metadata
+    # --- Keep intersection, ordered by metadata
     keep_ids = [sid for sid in meta_ids if sid in x_ids]
-
     if len(keep_ids) == 0:
         raise ValueError("[Rodin] No overlapping sample IDs between features (X) and metadata.")
 
     # Track prior aligned order to report if changed
     prev_aligned_order = [sid for sid in x_ids if sid in meta_ids]
 
-    # Apply filtering & reordering
+    # --- Apply filtering & reordering
     X = X.loc[:, keep_ids]
     samples = (samples[samples[id_col].isin(keep_ids)]
                      .set_index(id_col)
                      .loc[keep_ids]
                      .reset_index())
 
-    # Report order change
     if prev_aligned_order != keep_ids:
         print("[Rodin] Column order changed to the order of metadata.")
 
     print(f"[Rodin] Final: {X.shape[1]} samples, {X.shape[0]} features")
-    obj=Rodin_Class(X=X, features=features, samples=samples)
-    obj.uns['mode']=mode_
+    obj = Rodin_Class(X=X, features=features, samples=samples)
+    obj.uns['mode'] = mode_
     obj.uns['file_type'] = 'metabolomics' if mode_ == 'mzrt' else 'other'
-
     return obj
+
+
 
 
 def import_object(path):
