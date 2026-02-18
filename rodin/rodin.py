@@ -609,6 +609,102 @@ class Rodin_Class:
 
         return self.features
 
+    def ttest_paired(self, column_names):
+        """
+        Performs a paired t-test for repeated measures designs with exactly two levels
+        in the first column (e.g., two timepoints).
+
+        Pairing is defined by the subject column. The test is computed ONLY on subjects
+        that have observations in BOTH levels of the condition column. Subjects missing
+        one of the two levels are excluded (incomplete pairs are dropped).
+
+        Parameters
+        ----------
+        column_names : List[str]
+            List of exactly two column names in the samples DataFrame:
+            - column_names[0]: condition column with exactly 2 unique values
+            - column_names[1]: subject column used to define pairing across the two levels
+
+        Raises
+        ------
+        ValueError
+            If X or samples are None, if columns are missing, if condition has not exactly two levels,
+            if there are duplicate (subject, condition) rows, or if no complete pairs exist.
+
+        Returns
+        -------
+        pd.DataFrame
+            Updated features DataFrame with:
+            - p_value(ptt) <condition_col> [<subject_col>]
+            - p_adj(ptt) <condition_col> [<subject_col>]
+        """
+
+        if self.X is None or self.samples is None:
+            raise ValueError("Both X and samples must be assigned before calling ttest_paired.")
+
+        if len(column_names) != 2:
+            raise ValueError("Please provide exactly two column names: [condition_col, subject_col].")
+
+        for col in column_names:
+            if col not in self.samples.columns:
+                raise ValueError(f"Column '{col}' not found in samples.")
+
+        cond_col = column_names[0]
+        subject_col = column_names[1]
+        sid_col = self.samples.columns[0]
+
+        meta = self.samples[[sid_col, cond_col, subject_col]].copy()
+        meta = meta.dropna(subset=[sid_col, cond_col, subject_col])
+
+        uniq_levels = pd.unique(meta[cond_col])
+        if len(uniq_levels) != 2:
+            raise ValueError(
+                f"ttest_paired expects exactly 2 unique levels in '{cond_col}', got {len(uniq_levels)}."
+            )
+
+        if meta.duplicated(subset=[subject_col, cond_col]).any():
+            bad = meta[meta.duplicated(subset=[subject_col, cond_col], keep=False)].sort_values([subject_col, cond_col])
+            raise ValueError(
+                "Found duplicate (subject, condition) rows. Each subject must have at most 1 sample per level.\n"
+                f"Example rows:\n{bad.head(10)}"
+            )
+
+        try:
+            levels = sorted(list(uniq_levels))
+        except Exception:
+            levels = list(uniq_levels)
+
+        lv0, lv1 = levels[0], levels[1]
+
+        wide = meta.pivot(index=subject_col, columns=cond_col, values=sid_col)
+        pairs = wide[[lv0, lv1]].dropna()
+
+        if pairs.shape[0] == 0:
+            raise ValueError(
+                "No complete pairs found across the two levels. "
+                "Every subject must have one sample in each of the two levels."
+            )
+
+        s0 = pairs[lv0].astype(str).tolist()
+        s1 = pairs[lv1].astype(str).tolist()
+
+        x_cols = set(map(str, self.X.columns))
+        missing = set(s0 + s1) - x_cols
+        if missing:
+            raise ValueError(f"Some paired sample IDs are missing in X columns: {list(sorted(missing))[:10]}")
+
+        y0 = self.X.loc[:, s0].to_numpy()
+        y1 = self.X.loc[:, s1].to_numpy()
+
+        _, pvals = stats.ttest_rel(y1, y0, axis=1, nan_policy="omit")
+        p_adj = stats.false_discovery_control(ps=np.nan_to_num(pvals, nan=1.0), method="bh")
+
+        label = f"{cond_col} [{subject_col}]"
+        self.features[f"p_value(ptt) {label}"] = pvals
+        self.features[f"p_adj(ptt) {label}"] = p_adj
+
+        return self.features
+
 
     def pls_da(self, column_name):
         """
@@ -1139,214 +1235,405 @@ class Rodin_Class:
 
         return fig
 
-    def boxplot(self, hue, pathways=None, eids=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", zeros=True, cutoff_path=0.05,interactive=True,category_order=None, **boxplot_params):
+    def boxplot(
+    self,
+    hue,
+    pathways=None,
+    eids=None,
+    rows=None,
+    significant=0.05,
+    grid_dim=None,
+    figsize=None,
+    title="",
+    zeros=True,
+    cutoff_path=0.05,
+    interactive=True,
+    category_order=None,
+    hue2=None,
+    hue2_order=None,
+    hue2_palette=None,
+    **boxplot_params):
         """
         Generates box plots for specified pathways, rows, or EIDs with an option to filter by significance.
-    
+
         This function creates separate figures for each pathway, plotting all EIDs associated with that pathway.
         The function can also plot specified rows or rows corresponding to a list of EIDs.
-    
-        Parameters:
-        hue (str): Column name in 'self.samples' to be used for hue in the plots.
-        pathways (list of str or str, optional): Specific pathway(s) to include. If specified, plots all EIDs associated with these pathways.
-        eids (list, optional): A list of EIDs for which corresponding rows are to be plotted. If specified, only rows with these EIDs and p-values <= 'significant' will be considered.
-        rows (list, optional): A list of rows to be plotted. If 'None', rows will be determined based on 'eids' or 'pathway'.
-        significant (float, optional): A significance level (p-value threshold) to filter rows based on 'eids'. Default is 0.05.
-        grid_dim (tuple, optional): Dimensions for the grid of subplots (rows, columns). By default, it creates a single column of plots.
-        figsize (tuple, optional): Size of the figure (width, height). Auto-adjusted based on the number of plots if not provided.
-        title (str, optional): Overall title for the plot.
-        zeros (bool, optional): Whether to include zeros in the plot. Defaults to True.
-        cutoff_path (float, optional): Threshold for filtering pathways based on p-value. Defaults to 0.05.
-        interactive (bool, optional): Whether to generate interactive plots using Plotly. Defaults to True.
-        category_order (list, optional): A list of classes to change the order of plots.
-        **boxplot_params: Additional keyword arguments to be passed to seaborn's violinplot function.
-    
-        Returns:
-        figs (list): A list of matplotlib figure objects containing the generated box plots.
+
+        Parameters
+        ----------
+        hue : str
+            Column name in 'self.samples' to be used for x-axis grouping in the plots.
+            This is the original behavior of the function.
+
+        pathways : list[str] or str, optional
+            Specific pathway(s) to include. If specified, plots all EIDs associated with these pathways.
+
+        eids : list, optional
+            A list of EIDs for which corresponding rows are to be plotted.
+            If specified, only rows with these EIDs and p-values <= 'significant' will be considered.
+
+        rows : list, optional
+            A list of rows to be plotted. If None, rows will be determined based on 'eids' or 'pathways'.
+
+        significant : float, optional
+            A significance level (p-value threshold) to filter rows based on 'eids'. Default is 0.05.
+
+        grid_dim : tuple, optional
+            Dimensions for the grid of subplots (rows, columns). By default, it creates a single column of plots.
+
+        figsize : tuple, optional
+            Size of the figure (width, height). Auto-adjusted based on the number of plots if not provided.
+
+        title : str, optional
+            Overall title for the plot.
+
+        zeros : bool, optional
+            Whether to include zeros in the plot. Defaults to True.
+
+        cutoff_path : float, optional
+            Threshold for filtering pathways based on p-value. Defaults to 0.05.
+
+        interactive : bool, optional
+            Whether to generate interactive plots using Plotly. Defaults to True.
+
+        category_order : list, optional
+            A list of classes to change the order of x-axis categories (applied to Plotly as in the original code).
+
+        hue2 : str, optional
+            NEW. A second column in 'self.samples' used for coloring (splitting) boxes within each x category.
+            If hue2 is None, the function behaves exactly as before.
+
+        hue2_order : list, optional
+            NEW. The order of levels for hue2 (legend/color order). If None, the order is taken from appearance in data.
+
+        hue2_palette : dict, optional
+            NEW. Mapping {level: color} used for Plotly trace colors (marker_color). Can also be passed to seaborn.
+            If None, default colors are used.
+
+        **boxplot_params
+            Additional keyword arguments to be passed to Plotly go.Box or seaborn boxplot.
+
+        Returns
+        -------
+        figs : list or matplotlib.figure.Figure or None
+            If interactive=False: returns list of matplotlib figures (or a single fig in the non-pathway branch as in original).
+            If interactive=True: shows Plotly figures and returns figs or None (same behavior as original).
         """
-        
+
         figs = []
         if figsize is not None:
-            tmp=0
-        
+            tmp = 0
+
         # Handle the case where pathways, eids, and rows are all None
         if pathways is None and eids is None and rows is None:
             compounds_df = self.show_compounds(cutoff_path=cutoff_path, cutoff_eids=significant)
-            pathways = compounds_df.index.get_level_values('pathway').unique().tolist()
-    
+            pathways = compounds_df.index.get_level_values("pathway").unique().tolist()
+
         # If pathways is not None, handle it
         if pathways is not None:
             if isinstance(pathways, str):
                 pathways = [pathways]
-    
+
             compounds_df = self.show_compounds(paths=pathways, cutoff_path=cutoff_path, cutoff_eids=significant)
-            max_input_rows = compounds_df.groupby(level='pathway')['input_row'].nunique().max()
-            
+            max_input_rows = compounds_df.groupby(level="pathway")["input_row"].nunique().max()
+
             for pathway in pathways:
-                pathway_compounds = compounds_df.xs(pathway, level='pathway')
-                eids = pathway_compounds.index.get_level_values('compound_id').unique().tolist()
-                
+                pathway_compounds = compounds_df.xs(pathway, level="pathway")
+                eids = pathway_compounds.index.get_level_values("compound_id").unique().tolist()
+
                 # Filter for rows with p_value less than or equal to the significant threshold
-                rows = self.uns['compounds'][(self.uns['compounds']['EID'].isin(eids)) & (self.uns['compounds']['p_value'] <= significant)].input_row.values
-                
+                rows = self.uns["compounds"][
+                    (self.uns["compounds"]["EID"].isin(eids)) &
+                    (self.uns["compounds"]["p_value"] <= significant)
+                ].input_row.values
+
                 # If no rows are found, skip this pathway
                 if len(rows) == 0:
                     print(f"No significant compounds found for pathway: {pathway}")
                     continue
-    
+
                 # Ensure rows is a list
                 if isinstance(rows, int):
                     rows = [rows]
-    
+
                 rows = np.unique(rows)
-    
+
                 # Determine the number of subplots and set default grid dimensions if not provided
                 n_plots = len(rows)
                 if grid_dim is None:
-                    grid_dim = (1, max_input_rows)  # Default to one column with a row for each plot
-    
+                    grid_dim = (1, max_input_rows)
+
                 nrows, ncols = grid_dim
                 if figsize is None:
                     figsize = (5 * ncols, 5 * nrows)
                 else:
-                    height=figsize[1]*100
-                    width=figsize[0]*100
-                #####    
+                    height = figsize[1] * 100
+                    width = figsize[0] * 100
+
                 if interactive:
-                    fig = make_subplots(rows=int(nrows), cols=int(ncols), subplot_titles=[f"EID: {self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values}" for row in rows])
+                    fig = make_subplots(
+                        rows=int(nrows),
+                        cols=int(ncols),
+                        subplot_titles=[
+                            f"EID: {self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values}"
+                            for row in rows
+                        ],
+                    )
+
                     for i, row in enumerate(rows):
                         df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
+
                         if hue and hue in self.samples.columns:
-                            fig.add_trace(go.Box(y=df,x=self.samples[hue].values,**boxplot_params), row=i//ncols+1, col=i%ncols+1)
+                            # NEW: split/color by hue2 only if user provided hue2
+                            if hue2 and (hue2 in self.samples.columns):
+                                cvals = self.samples[hue2].astype(str).values
+                                levels = hue2_order if hue2_order is not None else pd.unique(cvals)
+
+                                for lvl in levels:
+                                    m = (cvals == str(lvl))
+                                    fig.add_trace(
+                                        go.Box(
+                                            y=df.values[m],
+                                            x=self.samples[hue].values[m],
+                                            name=str(lvl),
+                                            legendgroup=str(lvl),
+                                            showlegend=(i == 0),
+                                            marker_color=(hue2_palette.get(str(lvl)) if isinstance(hue2_palette, dict) else None),
+                                            **boxplot_params
+                                        ),
+                                        row=i // ncols + 1,
+                                        col=i % ncols + 1
+                                    )
+                            else:
+                                fig.add_trace(
+                                    go.Box(y=df, x=self.samples[hue].values, **boxplot_params),
+                                    row=i // ncols + 1,
+                                    col=i % ncols + 1
+                                )
                         else:
-                            fig.add_trace(go.Box(y=df,**boxplot_params), row=i//ncols+1, col=i%ncols+1)
-                            
-                        fig.update_yaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=0)
-                    fig.update_annotations(font_size=13)    
-                    fig.update_layout(title_text=f"{pathway}",showlegend=False,margin=dict(r=50))
-                    if 'tmp' in locals():
-                        fig.update_layout(height=height,width=width)
+                            fig.add_trace(
+                                go.Box(y=df, **boxplot_params),
+                                row=i // ncols + 1,
+                                col=i % ncols + 1
+                            )
+
+                        fig.update_yaxes(title_text=f"{row}", row=i // ncols + 1, col=i % ncols + 1, title_standoff=0)
+
+                    fig.update_annotations(font_size=13)
+                    fig.update_layout(title_text=f"{pathway}", showlegend=False, margin=dict(r=50))
+
+                    # NEW: only when hue2 is used
+                    if hue2 and (hue2 in self.samples.columns) and (hue and hue in self.samples.columns):
+                        fig.update_layout(showlegend=True, boxmode="group")
+
+                    if "tmp" in locals():
+                        fig.update_layout(height=height, width=width)
+
                     if category_order:
                         fig.update_xaxes(dict(categoryarray=category_order))
-                        
+
                     fig.show()
+
                 else:
                     # Create a figure and a grid of subplots
                     fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
                     if nrows * ncols > 1:
-                        axes = np.array(axes).reshape(-1)  # Flatten axes array for easy iteration
+                        axes = np.array(axes).reshape(-1)
                     else:
-                        axes = [axes]  # Ensure axes is iterable for a single subplot
-        
+                        axes = [axes]
+
                     # Iterate over the specified rows and plot
                     for i, row in enumerate(rows):
-                        if i < len(axes):  # Check to avoid IndexError
+                        if i < len(axes):
                             ax = axes[i]
                             df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
-        
+
                             if hue and hue in self.samples.columns:
-                                sns.boxplot(y=df, x=self.samples[hue].values, ax=ax, **boxplot_params)
+                                # NEW: seaborn hue only when hue2 is provided
+                                if hue2 and (hue2 in self.samples.columns):
+                                    plot_df = pd.DataFrame(
+                                        {
+                                            "value": df.values,
+                                            "x": self.samples[hue].values,
+                                            "c": self.samples[hue2].values,
+                                        }
+                                    )
+                                    sns.boxplot(
+                                        data=plot_df,
+                                        x="x",
+                                        y="value",
+                                        hue="c",
+                                        order=(category_order if category_order else None),
+                                        hue_order=(hue2_order if hue2_order else None),
+                                        palette=(hue2_palette if hue2_palette else None),
+                                        ax=ax,
+                                        **boxplot_params
+                                    )
+                                else:
+                                    sns.boxplot(y=df, x=self.samples[hue].values, ax=ax, **boxplot_params)
                             else:
                                 sns.boxplot(y=df, ax=ax, **boxplot_params)
-        
+
                             # Retrieve and set the corresponding EID as the subplot title
-                            eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
+                            eid = self.uns["compounds"][self.uns["compounds"]["input_row"] == row]["EID"].values
                             ax.set_title(f"EID: {eid}")
-        
+
                     # Hide any unused subplots
-                    for j in range(i+1, len(axes)):
-                        axes[j].axis('off')
-        
+                    for j in range(i + 1, len(axes)):
+                        axes[j].axis("off")
+
                     # Set the overall title and show plot
                     fig.tight_layout()
                     fig.suptitle(f"{pathway}")
-                    fig.subplots_adjust(top=0.88)  # Adjust subplots to fit the main title
+                    fig.subplots_adjust(top=0.88)
                     plt.show()
                     plt.close(fig)
-        
-                    # Append the figure to the list
+
                     figs.append(fig)
+
         else:
             # Handle 'eids' parameter and extract corresponding rows
             if eids is not None:
                 if isinstance(eids, int):
                     eids = [eids]
-                # Filter for rows with p_value less than or equal to the significant threshold
-                rows = self.uns['compounds'][(self.uns['compounds']['EID'].isin(eids)) & (self.uns['compounds']['p_value'] <= significant)].input_row.values
-            
+                rows = self.uns["compounds"][
+                    (self.uns["compounds"]["EID"].isin(eids)) &
+                    (self.uns["compounds"]["p_value"] <= significant)
+                ].input_row.values
+
             # If rows is None or empty after handling eids or pathway, return without plotting
             if rows is None or len(rows) == 0:
                 print("No rows to plot.")
                 return []
-    
+
             # Ensure 'rows' is a list
             if isinstance(rows, int):
                 rows = [rows]
-    
+
             rows = np.unique(rows)
-    
+
             # Determine the number of subplots and set default grid dimensions if not provided
             n_plots = len(rows)
             if grid_dim is None:
-                grid_dim = (1, n_plots)  # Default to one column with a row for each plot
-    
+                grid_dim = (1, n_plots)
+
             nrows, ncols = grid_dim
             if figsize is None:
                 figsize = (5 * ncols, 5 * nrows)
             else:
-                height=figsize[1]*100
-                width=figsize[0]*100
-            #####    
+                height = figsize[1] * 100
+                width = figsize[0] * 100
+
             if interactive:
                 fig = make_subplots(rows=int(nrows), cols=int(ncols))
+
                 for i, row in enumerate(rows):
                     df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
+
                     if hue and hue in self.samples.columns:
-                        fig.add_trace(go.Box(y=df,x=self.samples[hue].values,**boxplot_params), row=i//ncols+1, col=i%ncols+1)
+                        # NEW: split/color by hue2 
+                        if hue2 and (hue2 in self.samples.columns):
+                            cvals = self.samples[hue2].astype(str).values
+                            levels = hue2_order if hue2_order is not None else pd.unique(cvals)
+
+                            for lvl in levels:
+                                m = (cvals == str(lvl))
+                                fig.add_trace(
+                                    go.Box(
+                                        y=df.values[m],
+                                        x=self.samples[hue].values[m],
+                                        name=str(lvl),
+                                        legendgroup=str(lvl),
+                                        showlegend=(i == 0),
+                                        marker_color=(hue2_palette.get(str(lvl)) if isinstance(hue2_palette, dict) else None),
+                                        **boxplot_params
+                                    ),
+                                    row=i // ncols + 1,
+                                    col=i % ncols + 1
+                                )
+                        else:
+                            fig.add_trace(
+                                go.Box(y=df, x=self.samples[hue].values, **boxplot_params),
+                                row=i // ncols + 1,
+                                col=i % ncols + 1
+                            )
                     else:
-                        fig.add_trace(go.Box(y=df,**boxplot_params), row=i//ncols+1, col=i%ncols+1)
-                        
-                    fig.update_yaxes(title_text=f"{row}",row=i//ncols+1, col=i%ncols+1,title_standoff=0)
-                fig.update_annotations(font_size=13)    
-                fig.update_layout(title=title,showlegend=False,margin=dict(r=50))
-                if 'tmp' in locals():
-                        fig.update_layout(height=height,width=width)
+                        fig.add_trace(
+                            go.Box(y=df, **boxplot_params),
+                            row=i // ncols + 1,
+                            col=i % ncols + 1
+                        )
+
+                    fig.update_yaxes(title_text=f"{row}", row=i // ncols + 1, col=i % ncols + 1, title_standoff=0)
+
+                fig.update_annotations(font_size=13)
+                fig.update_layout(title=title, showlegend=False, margin=dict(r=50))
+
+                # NEW: only when hue2 is used
+                if hue2 and (hue2 in self.samples.columns) and (hue and hue in self.samples.columns):
+                    fig.update_layout(showlegend=True, boxmode="group")
+
+                if "tmp" in locals():
+                    fig.update_layout(height=height, width=width)
+
                 if category_order:
-                        fig.update_xaxes(dict(categoryarray=category_order))
-                        
+                    fig.update_xaxes(dict(categoryarray=category_order))
+
                 fig.show()
+
             else:
-            # Create a figure and a grid of subplots
+                # Create a figure and a grid of subplots
                 fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
                 if nrows * ncols > 1:
-                    axes = np.array(axes).reshape(-1)  # Flatten axes array for easy iteration
+                    axes = np.array(axes).reshape(-1)
                 else:
-                    axes = [axes]  # Ensure axes is iterable for a single subplot
-        
+                    axes = [axes]
+
                 # Iterate over the specified rows and plot
                 for i, row in enumerate(rows):
-                    if i < len(axes):  # Check to avoid IndexError
+                    if i < len(axes):
                         ax = axes[i]
                         df = self.X.loc[row] if zeros else self.X.loc[row].replace(0, np.nan)
-        
+
                         if hue and hue in self.samples.columns:
-                            sns.boxplot(y=df, x=self.samples[hue].values, ax=ax, **boxplot_params)
+                            # NEW: seaborn hue only when hue2 is provided
+                            if hue2 and (hue2 in self.samples.columns):
+                                plot_df = pd.DataFrame(
+                                    {
+                                        "value": df.values,
+                                        "x": self.samples[hue].values,
+                                        "c": self.samples[hue2].values,
+                                    }
+                                )
+                                sns.boxplot(
+                                    data=plot_df,
+                                    x="x",
+                                    y="value",
+                                    hue="c",
+                                    order=(category_order if category_order else None),
+                                    hue_order=(hue2_order if hue2_order else None),
+                                    palette=(hue2_palette if hue2_palette else None),
+                                    ax=ax,
+                                    **boxplot_params
+                                )
+                            else:
+                                sns.boxplot(y=df, x=self.samples[hue].values, ax=ax, **boxplot_params)
                         else:
                             sns.boxplot(y=df, ax=ax, **boxplot_params)
-        
-                        # Retrieve and set the corresponding EID as the subplot title
-                        eid = self.uns['compounds'][self.uns['compounds']['input_row'] == row]['EID'].values
+
+                        eid = self.uns["compounds"][self.uns["compounds"]["input_row"] == row]["EID"].values
                         ax.set_title(f"EID: {eid}")
-        
+
                 # Set the overall title and show plot
                 plt.tight_layout()
                 plt.suptitle(title)
-                plt.subplots_adjust(top=0.88) # Adjust subplots to fit the main title
+                plt.subplots_adjust(top=0.88)
                 plt.close(fig)
-        
-                figs=fig
-    
+
+                figs = fig
+
         return figs or None
+
 
 
 
