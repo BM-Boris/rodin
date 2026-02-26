@@ -3,6 +3,8 @@
 
 _Rodin_ is a Python library specifically designed for the comprehensive processing and analysis of metabolomics data and other omics data. It is a class-methods based toolkit, facilitating a range of tasks from basic data manipulation to advanced statistical evaluations, visualization, and metabolic pathway analysis. 
 
+📘 **Documentation:** https://minasenko.com/rodin
+
 Now, most of its functionality is available in the Web App at https://rodin-meta.com.
 
 ### **Features**
