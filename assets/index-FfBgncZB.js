@@ -276,8 +276,8 @@ ValueError: If separators cannot be detected, if there are no overlapping sample
 Parameters:
 - file_path_features (str): File path to the CSV file containing features.
 - file_path_classes (str): File path to the CSV file containing class information.
-- feat_sep (str, optional): Separator used in the features CSV file. Defaults to '      t'.
-- class_sep (str, optional): Separator used in the classes CSV file. Defaults to '      t'.
+- feat_sep (str, optional): Separator used in the features CSV file. Defaults to '\\t'.
+- class_sep (str, optional): Separator used in the classes CSV file. Defaults to '\\t'.
 - feat_stat (str, optional): Feature status mode indicating the layout of the feature table. Use 'mzrt' if the first two columns are mass-to-charge ratio (mz) and retention time (rt), or 'ann' if one column is dedicated to annotations.
 
 Returns:
