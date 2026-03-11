@@ -37,25 +37,24 @@ sns.set_theme()
 
 class Rodin_Class:
     """
-    A metabolomics data analysis class, supporting data manipulation, statistical analysis, 
-    dimensionality reduction, and visualization. Primarily designed for metabolomics research.
-
-    Attributes:
+    Rodin metabolomics analysis container.
+    
+    This class stores the main feature matrix together with sample metadata,
+    feature metadata, dimensionality-reduction results, and other unstructured
+    analysis outputs generated during a Rodin workflow.
+    
+    Attributes
     ----------
-    X : pd.DataFrame
-        Primary data matrix with metabolite intensities across samples (#features × #samples).
-    samples : pd.DataFrame
-        Annotations for each sample, including sample ID, experimental conditions, and other metadata.
-    features : pd.DataFrame
-        Annotations and statistical test results for each metabolite feature, including metabolite ID, 
-        mass-to-charge ratio (m/z), retention time, and results from statistical analyses.
+    X : pandas.DataFrame or None
+        Main feature matrix with ``features`` in rows and ``samples`` in columns.
+    samples : pandas.DataFrame or None
+        Sample metadata table. The first column is treated as the sample identifier.
+    features : pandas.DataFrame or None
+        Feature metadata table aligned to the rows of ``X``.
     uns : dict
-        Dictionary for additional unstructured annotations or metadata related to the experiment.
+        Unstructured analysis outputs and metadata.
     dr : dict
-        Stored results from various dimensionality reduction techniques (e.g., PCA, t-SNE, UMAP).
-
-    This class provides a comprehensive toolkit for processing and analyzing metabolomics data, 
-    from initial data handling to in-depth statistical evaluation.
+        Stored dimensionality-reduction results such as PCA, UMAP, or t-SNE.
     """
 
     def __init__(
@@ -68,6 +67,34 @@ class Rodin_Class:
     ):
 
         # Initialize private backing fields
+        """
+        Initialize a ``Rodin_Class`` object.
+        
+        Parameters
+        ----------
+        X : numpy.ndarray or scipy.sparse.spmatrix or pandas.DataFrame or None, optional
+            Main feature matrix with ``features`` in rows and ``samples`` in columns.
+        samples : pandas.DataFrame or None, optional
+            Sample metadata aligned to the columns of ``X``.
+        features : pandas.DataFrame or None, optional
+            Feature metadata aligned to the rows of ``X``.
+        uns : dict or None, optional
+            Unstructured annotations to attach to the object.
+        dr : dict or None, optional
+            Precomputed dimensionality-reduction results to attach to the object.
+        
+        Raises
+        ------
+        TypeError
+            If ``X``, ``samples``, or ``features`` are provided in an unsupported container type.
+        ValueError
+            If sample identifiers or feature dimensions are not aligned across inputs.
+        
+        Notes
+        -----
+        Validation is performed immediately during initialization, including sample-ID
+        matching and feature-dimension consistency.
+        """
         self._X = None
         self._samples = None
         self._features = None
@@ -83,43 +110,175 @@ class Rodin_Class:
 
     @property
     def X(self):
+        """
+        Return the main feature matrix.
+        
+        Returns
+        -------
+        pandas.DataFrame or None
+            Matrix with ``features`` in rows and ``samples`` in columns.
+        
+        Notes
+        -----
+        ``X`` is expected to stay row-aligned with ``features`` and column-aligned with
+        ``samples``.
+        """
         return self._X
 
     @X.setter
     def X(self, value):
+        """
+        Set the main feature matrix and validate alignment.
+        
+        Parameters
+        ----------
+        value : pandas.DataFrame or None
+            New feature matrix with ``features`` in rows and ``samples`` in columns.
+        
+        Raises
+        ------
+        TypeError
+            If ``value`` is not a pandas DataFrame or ``None``.
+        ValueError
+            If the updated matrix is inconsistent with ``samples`` or ``features``.
+        """
         self._X = self._validate_dataframe(value, "X")
         self._validate_sample_ids()
         self._validate_feature_dimensions()
 
     @property
     def samples(self):
+        """
+        Return the sample metadata table.
+        
+        Returns
+        -------
+        pandas.DataFrame or None
+            Metadata table whose first column contains sample identifiers.
+        
+        Notes
+        -----
+        The sample order must match the column order of ``X``.
+        """
         return self._samples
 
     @samples.setter
     def samples(self, value):
+        """
+        Set the sample metadata table and validate sample identifiers.
+        
+        Parameters
+        ----------
+        value : pandas.DataFrame or None
+            New sample metadata table.
+        
+        Raises
+        ------
+        TypeError
+            If ``value`` is not a pandas DataFrame or ``None``.
+        ValueError
+            If sample identifiers do not match the columns of ``X``.
+        """
         self._samples = self._validate_dataframe(value, "samples")
         self._validate_sample_ids()
 
     @property
     def features(self):
+        """
+        Return the feature metadata table.
+        
+        Returns
+        -------
+        pandas.DataFrame or None
+            Metadata table aligned to the rows of ``X``.
+        
+        Notes
+        -----
+        This table stores feature annotations together with downstream statistical
+        results generated by Rodin methods.
+        """
         return self._features
 
     @features.setter
     def features(self, value):
+        """
+        Set the feature metadata table and validate dimensions.
+        
+        Parameters
+        ----------
+        value : pandas.DataFrame or None
+            New feature metadata table.
+        
+        Raises
+        ------
+        TypeError
+            If ``value`` is not a pandas DataFrame or ``None``.
+        ValueError
+            If the number of rows does not match the number of rows in ``X``.
+        """
         self._features = self._validate_dataframe(value, "features")
         self._validate_feature_dimensions()
 
     def _validate_matrix_or_dataframe(self, obj, name):
+        """
+        Validate that an object is a supported matrix-like container.
+        
+        Parameters
+        ----------
+        obj : object
+            Candidate object to validate.
+        name : str
+            Human-readable argument name used in error messages.
+        
+        Returns
+        -------
+        object
+            The original object when validation succeeds.
+        
+        Raises
+        ------
+        TypeError
+            If ``obj`` is not ``None``, a NumPy array, a SciPy sparse matrix, or a pandas DataFrame.
+        """
         if obj is not None and not isinstance(obj, (np.ndarray, sparse.spmatrix, pd.DataFrame)):
             raise TypeError(f"{name} should be a numpy array, a scipy sparse matrix, or a pandas DataFrame.")
         return obj
 
     def _validate_dataframe(self, dataframe, name):
+        """
+        Validate that an object is a pandas DataFrame.
+        
+        Parameters
+        ----------
+        dataframe : object
+            Candidate object to validate.
+        name : str
+            Human-readable argument name used in error messages.
+        
+        Returns
+        -------
+        pandas.DataFrame or None
+            The original object when validation succeeds.
+        
+        Raises
+        ------
+        TypeError
+            If ``dataframe`` is not ``None`` and not a pandas DataFrame.
+        """
         if dataframe is not None and not isinstance(dataframe, pd.DataFrame):
             raise TypeError(f"{name} should be a pandas DataFrame.")
         return dataframe
 
     def _validate_sample_ids(self):
+        """
+        Validate that sample identifiers match between ``X`` and ``samples``.
+        
+        Raises
+        ------
+        ValueError
+            If the first column of ``samples`` does not contain exactly the same sample IDs,
+            in the same order, as the columns of ``X``.
+        """
         if self.X is not None and self.samples is not None:
             x_columns_set = set(self.X.columns)
             sample_ids_set = set(self.samples.iloc[:, 0])
@@ -146,6 +305,14 @@ class Rodin_Class:
                 
                 
     def _validate_feature_dimensions(self):
+        """
+        Validate that ``X`` and ``features`` have matching feature counts.
+        
+        Raises
+        ------
+        ValueError
+            If the number of rows in ``features`` does not match the number of rows in ``X``.
+        """
         if self._X is not None and self._features is not None:
             if self._X.shape[0] != self._features.shape[0]:
                 raise ValueError(f"Number of columns in X ({self._X.shape[0]}) does not match number of rows ({self._features.shape[0]}) in features")
@@ -153,6 +320,14 @@ class Rodin_Class:
 
 
     def __repr__(self):
+        """
+        Return a compact text representation of the Rodin object.
+        
+        Returns
+        -------
+        str
+            Summary string containing the object dimensions and stored analysis keys.
+        """
         x_shape = self.X.shape if self.X is not None else (0, 0)
         num_features = x_shape[0]
         num_samples = x_shape[1]
@@ -171,17 +346,27 @@ class Rodin_Class:
 
     def __getitem__(self, idx):
         """
-            Enables advanced slicing of the Rodin object using DataFrame slices or masks.
-
-            Parameters:
-            - idx (Union[pd.DataFrame, pd.Series, slice]): The slicing index. Can be a DataFrame for boolean indexing,
-              a Series for label-based indexing, or a slice object.
-
-            Raises:
-            ValueError: If the provided index is invalid or if the slicing results in mismatched dimensions.
-
-            Returns:
-            Rodin_Class: A new Rodin_Class object with the sliced data.
+        Slice a Rodin object using an aligned pandas selection.
+        
+        Parameters
+        ----------
+        idx : pandas.DataFrame
+            DataFrame-based selection aligned to ``X``, ``features``, or ``samples``.
+        
+        Returns
+        -------
+        Rodin_Class
+            New Rodin object containing the sliced matrices and metadata.
+        
+        Raises
+        ------
+        ValueError
+            If the provided selection does not align with one of the supported Rodin tables.
+        
+        Notes
+        -----
+        This method is commonly used for feature-level filtering, for example by passing
+        subsets derived from ``obj.features``.
         """
         
         if isinstance(idx, pd.DataFrame): 
@@ -229,17 +414,24 @@ class Rodin_Class:
 
     def run_pca(self, n_components=2, custom_name='pca'):
         """
-            Perform PCA on the X matrix and store the results in the dr attribute.
-
-            Parameters:
-            - n_components (int, optional): Number of principal components to compute. Defaults to 2.
-            - custom_name (str, optional): Key under which the PCA result is stored in the dr dictionary. Defaults to 'pca'.
-
-            Raises:
-            ValueError: If X is None or not a DataFrame.
-
-            Returns:
-            None: The method updates the dr attribute of the object.
+        Run principal component analysis on ``X`` and store the embedding in ``dr``.
+        
+        Parameters
+        ----------
+        n_components : int, default=2
+            Number of principal components to compute.
+        custom_name : str, default='pca'
+            Key used to store the result in ``self.dr``.
+        
+        Returns
+        -------
+        None
+            The PCA scores are stored in ``self.dr[custom_name]``.
+        
+        Raises
+        ------
+        ValueError
+            If ``X`` is missing or not a pandas DataFrame.
         """
         
         # Validate that X is not None and is a DataFrame
@@ -256,20 +448,30 @@ class Rodin_Class:
 
     def run_umap(self, n_components=2, use_pca=False, pca_name='pca', custom_name='umap', **umap_params):
         """
-            Perform UMAP on the X matrix or on PCA components and store the results.
-
-            Parameters:
-            - n_components (int): Number of dimensions for UMAP projection.
-            - use_pca (bool): Whether to use PCA components as input for UMAP. Defaults to False.
-            - pca_name (str): The key under which PCA results are stored, used if use_pca is True.
-            - custom_name (str): Key under which the UMAP result is stored in the dr dictionary.
-            - umap_params (dict): Additional parameters for UMAP.
-
-            Raises:
-            ValueError: If PCA results are required but not found, or if X is None.
-
-            Returns:
-            None: The method updates the dr attribute of the object with UMAP results.
+        Run UMAP on ``X`` or on a stored PCA embedding.
+        
+        Parameters
+        ----------
+        n_components : int, default=2
+            Number of UMAP dimensions to compute.
+        use_pca : bool, default=False
+            If ``True``, use a stored PCA embedding instead of ``X.T``.
+        pca_name : str, default='pca'
+            Key of the PCA embedding used when ``use_pca=True``.
+        custom_name : str, default='umap'
+            Key used to store the UMAP result in ``self.dr``.
+        **umap_params : dict
+            Additional keyword arguments forwarded to ``umap.UMAP``.
+        
+        Returns
+        -------
+        None
+            The embedding is stored in ``self.dr[custom_name]``.
+        
+        Raises
+        ------
+        ValueError
+            If ``use_pca=True`` and the requested PCA result is missing or has too few components.
         """
         
         if use_pca:
@@ -289,20 +491,30 @@ class Rodin_Class:
 
     def run_tsne(self, n_components=2, use_pca=False, pca_name='pca', custom_name='t-sne', **tsne_params):
         """
-            Perform t-SNE on the X matrix or on PCA components and store the results.
-
-            Parameters:
-            - n_components (int): Number of dimensions for t-SNE projection.
-            - use_pca (bool): Whether to use PCA components as input for t-SNE. Defaults to False.
-            - pca_name (str): The key under which PCA results are stored, used if use_pca is True.
-            - custom_name (str): Key under which the t-SNE result is stored in the dr dictionary.
-            - tsne_params (dict): Additional parameters for t-SNE.
-
-            Raises:
-            ValueError: If PCA results are required but not found, or if X is None.
-
-            Returns:
-            None: The method updates the dr attribute of the object with t-SNE results.
+        Run t-SNE on ``X`` or on a stored PCA embedding.
+        
+        Parameters
+        ----------
+        n_components : int, default=2
+            Number of t-SNE dimensions to compute.
+        use_pca : bool, default=False
+            If ``True``, use a stored PCA embedding instead of ``X.T``.
+        pca_name : str, default='pca'
+            Key of the PCA embedding used when ``use_pca=True``.
+        custom_name : str, default='t-sne'
+            Key used to store the t-SNE result in ``self.dr``.
+        **tsne_params : dict
+            Additional keyword arguments forwarded to ``sklearn.manifold.TSNE``.
+        
+        Returns
+        -------
+        None
+            The embedding is stored in ``self.dr[custom_name]``.
+        
+        Raises
+        ------
+        ValueError
+            If ``use_pca=True`` and the requested PCA result is missing or has too few components.
         """
         
         if use_pca:
@@ -322,22 +534,34 @@ class Rodin_Class:
 
     def plot(self, hue=None, dr_name='umap', size=None, markers=None,title = "",interactive=True, **scatterplot_params):
         """
-            Plot the results of a dimensionality reduction technique.
-
-            Parameters:
-            - dr_name (str, optional): Name of the dimensionality reduction result to use for the plot. Defaults to 'umap'.
-            - hue (str, optional): Column name in the 'samples' DataFrame for point coloring. Defaults to None.
-            - size (str, optional): Column name in the 'samples' DataFrame to adjust point sizes. Defaults to None.
-            - markers (str, optional): Column name in the 'samples' DataFrame for point styles. Defaults to None.
-            - title (str, optional): Title for the plot. Defaults to an empty string.
-            - interactive (bool, optional): Whether to create an interactive Plotly scatterplot or a static Seaborn scatterplot. Defaults to True.
-            - scatterplot_params (dict, optional): Additional keyword arguments for seaborn.scatterplot.
-
-            Raises:
-            ValueError: If specified dr_name is not found in 'dr' or if hue, size, or markers are not columns in 'samples'.
-
-            Returns:
-            ax: The matplotlib figure object containing the generated plots.
+        Plot a stored dimensionality-reduction embedding.
+        
+        Parameters
+        ----------
+        hue : str or None, optional
+            Column in ``self.samples`` used for point color.
+        dr_name : str, default='umap'
+            Key of the dimensionality-reduction result stored in ``self.dr``.
+        size : str or None, optional
+            Column in ``self.samples`` used for point size.
+        markers : str or None, optional
+            Column in ``self.samples`` used for point symbol or marker style.
+        title : str, default=''
+            Plot title.
+        interactive : bool, default=True
+            If ``True``, return a Plotly scatter plot. Otherwise return a seaborn/matplotlib plot.
+        **scatterplot_params : dict
+            Additional keyword arguments forwarded to the plotting backend.
+        
+        Returns
+        -------
+        object
+            Plotly figure when ``interactive=True``, otherwise the matplotlib/seaborn axes object.
+        
+        Raises
+        ------
+        ValueError
+            If ``dr_name`` is missing or if requested metadata columns are not present in ``samples``.
         """
         
         if dr_name not in self.dr:
@@ -407,38 +631,35 @@ class Rodin_Class:
             log: bool = True
         ):
         """
-            Pre‑processes an omics feature matrix (self.X) by
-            1. Filling missing values
-            2. Filtering features / samples by missing‑value thresholds
-            3. Applying optional normalisation
-            4. Applying optional scaling
-            5. log‑transforming
-            6. Removing constant or duplicated features
-
-            Parameters:
-            - thresh (float, default 0.5):
-                Maximum fraction of missing values (zeros) allowed per feature
-                before the feature is dropped.
-            - norm ({'q','t','median','mean','z',None}, default 'q'):
-                Normalisation method:
-                  • 'q'      – Quantile normalisation across samples
-                  • 't'      – Total intensity (column sum) normalisation
-                  • 'median' – Divide by sample median, then multiply by global median
-                  • 'mean'   – As above but with the mean
-                  • None     – Skip normalisation
-            - scale ({'uv','pareto','minmax',None} or bool, default 'uv'):
-                Scaling method applied after normalisation:
-                  • 'uv'     – Unit‑variance (divide by row SD)
-                  • 'pareto' – Divide by √SD
-                  • 'minmax' – Row‑wise 0…1 scaling
-                  • None     – Skip scaling
-                Back‑compat: True → 'uv', False → None.
-            - log (bool, default True):
-                Whether to apply log2(x + 1) transformation.
-
-            Returns:
-            self : Rodin_Class
-                The object with its X and features attributes updated.
+        Preprocess the feature matrix stored in ``self.X``.
+        
+        Parameters
+        ----------
+        thresh : float, default=0.5
+            Maximum allowed fraction of zeros per feature before the feature is removed.
+        norm : {'q', 't', 'median', 'mean', None}, default='q'
+            Normalization method applied across ``samples``.
+        scale : {'uv', 'pareto', 'minmax', None} or bool, default='uv'
+            Scaling method applied after normalization. Boolean values keep backward-compatible
+            behavior where ``True`` maps to ``'uv'`` and ``False`` maps to ``None``.
+        log : bool, default=True
+            If ``True``, apply ``log2(x + 1)`` after normalization and scaling.
+        
+        Returns
+        -------
+        Rodin_Class
+            The same object with updated ``X`` and aligned ``features``.
+        
+        Raises
+        ------
+        ValueError
+            If ``self.X`` is missing or if an unsupported normalization or scaling option is requested.
+        
+        Notes
+        -----
+        The preprocessing workflow fills missing values with zero, filters ``features`` by missingness,
+        applies optional normalization and scaling, performs optional log transformation, and then
+        removes constant or duplicated ``features``.
         """
 
     
@@ -533,16 +754,22 @@ class Rodin_Class:
 
     def oneway_anova(self, column_name):
         """
-            Performs a one-way ANOVA test on the data, grouped by the specified column in the samples DataFrame.
-
-            Parameters:
-            - column_name (str): Column name in the samples DataFrame to group the data for ANOVA.
-
-            Raises:
-            ValueError: If X or samples are None or if the column_name is not in samples.
-
-            Returns:
-            pd.DataFrame: The updated features DataFrame with ANOVA test results.
+        Run one-way ANOVA for each feature.
+        
+        Parameters
+        ----------
+        column_name : str
+            Column in ``self.samples`` defining the groups to compare.
+        
+        Returns
+        -------
+        pandas.DataFrame
+            Updated ``self.features`` with ANOVA p-values and adjusted p-values.
+        
+        Raises
+        ------
+        ValueError
+            If ``X`` or ``samples`` is missing, or if ``column_name`` is not present in ``samples``.
         """
         
         if self.X is None or self.samples is None:
@@ -569,16 +796,22 @@ class Rodin_Class:
 
     def ttest(self, column_name):
         """
-            Performs a t-test between two groups in the data, defined by the specified column in the samples DataFrame.
-
-            Parameters:
-            - column_name (str): Column name in the samples DataFrame to define the two groups.
-
-            Raises:
-            ValueError: If X or samples are None, if the column_name is not in samples, or if there are not exactly two unique classes.
-
-            Returns:
-            pd.DataFrame: The updated features DataFrame with t-test results.
+        Run an unpaired two-group t-test for each feature.
+        
+        Parameters
+        ----------
+        column_name : str
+            Column in ``self.samples`` defining the two groups.
+        
+        Returns
+        -------
+        pandas.DataFrame
+            Updated ``self.features`` with t-test p-values and adjusted p-values.
+        
+        Raises
+        ------
+        ValueError
+            If ``X`` or ``samples`` is missing, if ``column_name`` is absent, or if the column does not contain exactly two groups.
         """
         
         if self.X is None or self.samples is None:
@@ -609,29 +842,28 @@ class Rodin_Class:
 
     def ttest_paired(self, column_names):
         """
-            Performs a paired t-test for repeated measures designs with exactly two levels
-            in the first column (e.g., two timepoints).
-
-            Pairing is defined by the subject column. The test is computed ONLY on subjects
-            that have observations in BOTH levels of the condition column. Subjects missing
-            one of the two levels are excluded (incomplete pairs are dropped).
-
-            Parameters:
-            - column_names (List[str]):
-                List of exactly two column names in the samples DataFrame:
-                column_names[0] is the condition column with exactly two unique values.
-                column_names[1] is the subject column used to define pairing across levels.
-
-            Raises:
-            ValueError
-                If X or samples are None, if columns are missing, if condition has not exactly two levels,
-                if there are duplicate (subject, condition) rows, or if no complete pairs exist.
-
-            Returns:
-            pd.DataFrame
-                Updated features DataFrame with:
-                p_value(ptt) <condition_col> [<subject_col>]
-                p_adj(ptt) <condition_col> [<subject_col>]
+        Run a paired t-test for each feature.
+        
+        Parameters
+        ----------
+        column_names : list[str]
+            Two-element list where the first value is the condition column and the second value is
+            the subject or pairing column in ``self.samples``.
+        
+        Returns
+        -------
+        pandas.DataFrame
+            Updated ``self.features`` with paired t-test p-values and adjusted p-values.
+        
+        Raises
+        ------
+        ValueError
+            If required inputs are missing, if the condition column does not contain exactly two levels,
+            if duplicate subject-condition rows exist, or if no complete subject pairs are available.
+        
+        Notes
+        -----
+        Only subjects with observations in both levels of the condition column are used in the test.
         """
 
         if self.X is None or self.samples is None:
@@ -703,16 +935,22 @@ class Rodin_Class:
 
     def pls_da(self, column_name):
         """
-            Performs Partial Least Squares Discriminant Analysis (PLS-DA) on the data.
-
-            Parameters:
-            - column_name (str): Column name in the samples DataFrame to use as the response variable.
-
-            Raises:
-            ValueError: If X or samples are None or if the column_name is not in samples.
-
-            Returns:
-            pd.DataFrame: The updated features DataFrame with VIP scores from PLS-DA.
+        Run PLS-DA and store variable importance scores.
+        
+        Parameters
+        ----------
+        column_name : str
+            Column in ``self.samples`` used as the response variable.
+        
+        Returns
+        -------
+        pandas.DataFrame
+            Updated ``self.features`` with a ``vips`` column.
+        
+        Raises
+        ------
+        ValueError
+            If ``X`` or ``samples`` is missing, or if ``column_name`` is not present in ``samples``.
         """
         
         if self.X is None or self.samples is None:
@@ -733,6 +971,23 @@ class Rodin_Class:
 
         # Function to calculate VIP scores
         def vip(x, y, model):
+            """
+            Compute variable importance in projection scores for a fitted PLS model.
+            
+            Parameters
+            ----------
+            x : numpy.ndarray
+                Predictor matrix used to fit the model.
+            y : numpy.ndarray
+                Response vector or matrix used to fit the model.
+            model : object
+                Fitted PLS model exposing ``x_scores_``, ``x_rotations_``, and ``y_loadings_``.
+            
+            Returns
+            -------
+            numpy.ndarray
+                VIP score for each predictor.
+            """
             t = model.x_scores_
             w = model.x_rotations_
             q = model.y_loadings_
@@ -758,16 +1013,22 @@ class Rodin_Class:
 
     def twoway_anova(self, column_names):
         """
-            Performs a two-way ANOVA test on the data, grouped by two specified columns in the samples DataFrame.
-
-            Parameters:
-            - column_names (List[str]): List of two column names in the samples DataFrame to group the data for ANOVA.
-
-            Raises:
-            ValueError: If X or samples are None, if either column name is not in samples, or if there are not exactly two column names provided.
-
-            Returns:
-            pd.DataFrame: The updated features DataFrame with two-way ANOVA test results.
+        Run two-way ANOVA for each feature.
+        
+        Parameters
+        ----------
+        column_names : list[str]
+            Two sample-metadata columns used as factors in the model.
+        
+        Returns
+        -------
+        pandas.DataFrame
+            Updated ``self.features`` with two-way ANOVA results.
+        
+        Raises
+        ------
+        ValueError
+            If inputs are missing, if any requested column is absent, or if exactly two factor names are not provided.
         """
         
         if self.X is None or self.samples is None:
@@ -818,21 +1079,30 @@ class Rodin_Class:
 
     def sf_lr(self, target_column, moderator=None, interaction=False,degree=1, **kwargs):
         """
-            Performs linear regression for each feature in the dataset against the target column, optionally includinga moderator
-            and interaction term. Updates the features DataFrame with regression p-values and adjusted p-values.
-
-            Parameters:
-            - target_column (str): The name of the column in the 'samples' DataFrame to use as the dependent variable.
-            - moderator (str, optional): The name of the moderator variable column in the 'samples' DataFrame. If provided, includes this variable in the regression.
-            - interaction (bool, optional): If True and a moderator is provided, includes the interaction term between the feature and moderator in the model.
-            - degree (int, optional): The degree of polynomial terms to include in the regression. Defaults to 1.
-            - **kwargs: Additional keyword arguments can be passed to the regression method.
-
-            Raises:
-            ValueError: If 'X' or 'samples' are None, if 'target_column' is not in 'samples', or if 'moderator' is specified but not found in 'samples'.
-
-            Returns:
-            pd.DataFrame: The updated features DataFrame with new columns for regression p-values and adjusted p-values.
+        Run feature-wise linear regression.
+        
+        Parameters
+        ----------
+        target_column : str
+            Continuous response column in ``self.samples``.
+        moderator : str or None, optional
+            Optional moderator column included in the model.
+        interaction : bool, default=False
+            If ``True``, include an interaction term between the feature and moderator.
+        degree : int, default=1
+            Polynomial degree applied to the feature term.
+        **kwargs : dict
+            Additional keyword arguments forwarded to the regression backend.
+        
+        Returns
+        -------
+        pandas.DataFrame
+            Updated ``self.features`` with regression coefficients, p-values, or related statistics.
+        
+        Raises
+        ------
+        ValueError
+            If ``X`` or ``samples`` is missing, if ``target_column`` is absent, or if the moderator column is invalid.
         """
         
         if self.X is None or self.samples is None:
@@ -908,22 +1178,32 @@ class Rodin_Class:
 
     def sf_lg(self, target_column, moderator=None, interaction=False, regu=False,degree=1, **kwargs):
         """
-            Performs logistic regression for each feature in the dataset against the target column, optionally including a moderator
-            and interaction term. Updates the features DataFrame with regression p-values and adjusted p-values.
-
-            Parameters:
-            - target_column (str): The name of the column in the 'samples' DataFrame to use as the dependent variable.
-            - moderator (str, optional): The name of the moderator variable column in the 'samples' DataFrame. If provided, includes this variable in the regression.
-            - interaction (bool, optional): If True and a moderator is provided, includes the interaction term between the feature and moderator in the model.
-            - regu (bool, optional): Enables regularization for the regression model. If True, L1 (Lasso) regularization is enabled and the 'alpha' parameter should be specified to control the regularization strength. Default is False.
-            - degree (int, optional): The degree of polynomial terms to include in the regression. Defaults to 1.
-            - **kwargs: Additional keyword arguments can be passed to the regression method, such as 'alpha' to specify the regularization strength.
-
-            Raises:
-            ValueError: If 'X' or 'samples' are None, if 'target_column' is not in 'samples', or if 'moderator' is specified but not found in 'samples'.
-
-            Returns:
-            pd.DataFrame: The updated features DataFrame with new columns for regression p-values and adjusted p-values.
+        Run feature-wise logistic regression.
+        
+        Parameters
+        ----------
+        target_column : str
+            Categorical response column in ``self.samples``.
+        moderator : str or None, optional
+            Optional moderator column included in the model.
+        interaction : bool, default=False
+            If ``True``, include an interaction term between the feature and moderator.
+        regu : bool, default=False
+            If ``True``, enable regularized logistic regression.
+        degree : int, default=1
+            Polynomial degree applied to the feature term.
+        **kwargs : dict
+            Additional keyword arguments forwarded to the regression backend.
+        
+        Returns
+        -------
+        pandas.DataFrame
+            Updated ``self.features`` with logistic-regression statistics.
+        
+        Raises
+        ------
+        ValueError
+            If ``X`` or ``samples`` is missing, if ``target_column`` is absent, or if the moderator column is invalid.
         """
         
         if self.X is None or self.samples is None:
@@ -1008,20 +1288,30 @@ class Rodin_Class:
 
     def rf_class(self, target_column, n_estimators=100, random_state=16,cv=0, **kwargs):
         """
-            Trains a Random Forest Classifier using 4-fold cross-validation on the data, returns feature importances,
-            and print a classification report.
-
-            Parameters:
-            - target_column (str): Column name in the 'samples' DataFrame to use as the target variable.
-            - n_estimators (int, optional): The number of trees in the forest. Defaults to 100.
-            - random_state (int, optional): Random state for reproducibility. Defaults to 16.
-            - cv (int, optional): Number of folds for validation. Defaults to 0.
-
-            Raises:
-            ValueError: If X or samples are None or if the target_column is not in samples.
-
-            Returns:
-            dict: Dictionary containing feature importances and classification report DataFrame.
+        Train a random-forest classifier on sample metadata labels.
+        
+        Parameters
+        ----------
+        target_column : str
+            Column in ``self.samples`` used as the classification target.
+        n_estimators : int, default=100
+            Number of trees in the forest.
+        random_state : int, default=16
+            Random seed for reproducibility.
+        cv : int, default=0
+            Number of cross-validation folds. Use ``0`` to skip cross-validation.
+        **kwargs : dict
+            Additional keyword arguments forwarded to ``RandomForestClassifier``.
+        
+        Returns
+        -------
+        dict
+            Dictionary containing feature-importance values and classification metrics.
+        
+        Raises
+        ------
+        ValueError
+            If ``X`` or ``samples`` is missing, or if ``target_column`` is not present in ``samples``.
         """
         if self.X is None or self.samples is None:
             raise ValueError("Both X and samples must be assigned before calling rf_class.")
@@ -1052,20 +1342,30 @@ class Rodin_Class:
 
     def rf_regress(self, target_column, n_estimators=100, random_state=16, cv=0, **kwargs):
         """
-            Trains a Random Forest Regressor using cross-validation on the data, returns feature importances,
-            and print regression metrics.
-
-            Parameters:
-            - target_column (str): Column name in the 'samples' DataFrame to use as the target variable.
-            - n_estimators (int, optional): The number of trees in the forest. Defaults to 100.
-            - random_state (int, optional): Random state for reproducibility. Defaults to 16.
-            - cv (int, optional): Number of folds for cross-validation. Defaults to 0.
-
-            Raises:
-            ValueError: If X or samples are None or if the target_column is not in samples.
-
-            Returns:
-            dict: Dictionary containing feature importances and regression metrics.
+        Train a random-forest regressor on sample metadata values.
+        
+        Parameters
+        ----------
+        target_column : str
+            Column in ``self.samples`` used as the regression target.
+        n_estimators : int, default=100
+            Number of trees in the forest.
+        random_state : int, default=16
+            Random seed for reproducibility.
+        cv : int, default=0
+            Number of cross-validation folds. Use ``0`` to skip cross-validation.
+        **kwargs : dict
+            Additional keyword arguments forwarded to ``RandomForestRegressor``.
+        
+        Returns
+        -------
+        dict
+            Dictionary containing feature-importance values and regression metrics.
+        
+        Raises
+        ------
+        ValueError
+            If ``X`` or ``samples`` is missing, or if ``target_column`` is not present in ``samples``.
         """
         if self.X is None or self.samples is None:
             raise ValueError("Both X and samples must be assigned before calling rf_regress.")
@@ -1097,17 +1397,29 @@ class Rodin_Class:
     
     def fold_change(self, column_name,reference=None):
         """
-            Calculates log fold change for the data grouped by the specified column in the samples DataFrame (use log transformation in the previous steps).
-
-            Parameters:
-            - column_name (str): Column name in the samples DataFrame to group the data for fold change calculation.
-            - reference (str): Value to use as a reference for fold change. Defaults to None.
-
-            Raises:
-            ValueError: If X or samples are None, or if the column_name is not in samples.
-
-            Returns:
-            pd.DataFrame: The updated features DataFrame with log fold change results.
+        Calculate log fold change for each feature between sample groups.
+        
+        Parameters
+        ----------
+        column_name : str
+            Column in ``self.samples`` defining the groups to compare.
+        reference : str or None, optional
+            Reference level used as the denominator group.
+        
+        Returns
+        -------
+        pandas.DataFrame
+            Updated ``self.features`` with fold-change columns.
+        
+        Raises
+        ------
+        ValueError
+            If ``X`` or ``samples`` is missing, or if ``column_name`` is not present in ``samples``.
+        
+        Notes
+        -----
+        This method is typically used after log transformation so that differences correspond
+        to log fold change.
         """
         
         if self.X is None or self.samples is None:
@@ -1145,26 +1457,44 @@ class Rodin_Class:
                     height=820,width=900,center_values=False,standardize='row',
                     link_method='ward',hidden_labels='row',color_map='RdBu',line_width=1.4,hue=None, **clustergram_params):
         """
-            Creates a clustergram (clustered heatmap) of the X matrix.
-
-            Parameters:
-            - title (str, optional): Title for the plot. Defaults to an empty string.
-            - interactive (bool, optional): Whether to create an interactive Dash Bio Clustergram or a static Seaborn clustermap. Defaults to True.
-            - height, width (int, optional): Height and width of the plot. Defaults to 820 and 900 respectively.
-            - center_values (bool, optional): Whether to center values in the clustergram. Defaults to False.
-            - standardize (str, optional): Standardization method, either 'row' or 'column'. Defaults to 'row'.
-            - link_method (str, optional): Linkage method for hierarchical clustering. Defaults to 'ward'.
-            - hidden_labels (str, optional): Labels to hide in the plot. Defaults to 'row'.
-            - color_map (str, optional): Color map for the heatmap. Defaults to 'RdBu'.
-            - line_width (float, optional): Line width for the clustergram. Defaults to 1.4.
-            - hue (str, optional): Column name in the samples DataFrame used to color the labels. Defaults to None.
-            - clustergram_params (dict, optional): Additional keyword arguments for Dash Bio Clustergram or Seaborn clustermap.
-
-            Raises:
-            ValueError: If X is None.
-
-            Returns:
-            object: Dash Bio Clustergram object if interactive, else Seaborn ClusterGrid object.
+        Generate a clustered heatmap from ``self.X``.
+        
+        Parameters
+        ----------
+        title : str, default=''
+            Plot title.
+        interactive : bool, default=True
+            If ``True``, return an interactive Dash Bio clustergram. Otherwise return a seaborn clustermap.
+        height : int or None, default=820
+            Figure height in pixels for interactive output.
+        width : int or None, default=900
+            Figure width in pixels for interactive output.
+        center_values : bool, default=False
+            If ``True``, center values before plotting when supported by the backend.
+        standardize : {'row', 'column', None}, default='row'
+            Standardization axis used before clustering.
+        link_method : str, default='ward'
+            Linkage method used for hierarchical clustering.
+        hidden_labels : str or None, default='row'
+            Axis labels to hide in the clustergram.
+        color_map : str, default='RdBu'
+            Colormap used for the heatmap.
+        line_width : float, default=1.4
+            Width of grid lines between heatmap cells.
+        hue : str or None, optional
+            Column in ``self.samples`` used to annotate ``samples``.
+        **clustergram_params : dict
+            Additional keyword arguments forwarded to the plotting backend.
+        
+        Returns
+        -------
+        object
+            Interactive clustergram figure or seaborn cluster object.
+        
+        Raises
+        ------
+        ValueError
+            If ``X`` is missing.
         """
         
         if self.X is None:
@@ -1248,80 +1578,56 @@ class Rodin_Class:
     hue2_palette=None,
     **boxplot_params):
         """
-            Generates box plots for specified pathways, rows, or EIDs with an option to filter by significance.
-
-            This function creates separate figures for each pathway, plotting all EIDs associated with that pathway.
-            The function can also plot specified rows or rows corresponding to a list of EIDs.
-
-            Parameters:
-            - hue (str):
-                Column name in 'self.samples' to be used for x-axis grouping in the plots.
-                This is the original behavior of the function.
-
-            - pathways (list[str] or str, optional):
-                Specific pathway(s) to include. If specified, plots all EIDs associated with these pathways.
-
-            - eids (list, optional):
-                A list of EIDs for which corresponding rows are to be plotted.
-                If specified, only rows with these EIDs and p-values <= 'significant' will be considered.
-
-            - rows (list, optional):
-                A list of rows to be plotted. If None, rows will be determined based on 'eids' or 'pathways'.
-
-            - significant (float, optional):
-                A significance level (p-value threshold) to filter rows based on 'eids'. Default is 0.05.
-
-            - grid_dim (tuple, optional):
-                Dimensions for the grid of subplots (rows, columns). By default, it creates a single column of plots.
-
-            - figsize (tuple, optional):
-                Size of the figure (width, height). Auto-adjusted based on the number of plots if not provided.
-
-            - title (str, optional):
-                Overall title for the plot.
-
-            - zeros (bool, optional):
-                Whether to include zeros in the plot. Defaults to True.
-
-            - cutoff_path (float, optional):
-                Threshold for filtering pathways based on p-value. Defaults to 0.05.
-
-            - interactive (bool, optional):
-                Whether to generate interactive plots using Plotly. Defaults to True.
-
-            - category_order (list, optional):
-                A list of classes to change the order of x-axis categories (applied to Plotly as in the original code).
-
-            - hue2 (str, optional):
-                NEW. A second column in 'self.samples' used for coloring (splitting) boxes within each x category.
-                If hue2 is None, the function behaves exactly as before.
-
-            - hue2_order (list, optional):
-                NEW. The order of levels for hue2 (legend/color order). If None, the order is taken from appearance in data.
-
-            - hue2_palette (dict, optional):
-                NEW. Mapping {level: color} used for Plotly trace colors (marker_color). Can also be passed to seaborn.
-                If None, default colors are used.
-
-            - **boxplot_params
-                Additional keyword arguments to be passed to Plotly go.Box or seaborn boxplot.
-
-            Notes:
-            Plotly styling keys (with examples).
-            Parameters:
-                - marker_color controls box/points color (e.g., marker_color="#1f77b4").
-                - line_color controls outline color (e.g., line_color="black").
-                - line_width controls outline width (e.g., line_width=2).
-                - fillcolor controls box fill color (e.g., fillcolor="rgba(31,119,180,0.25)").
-                - opacity sets trace opacity in range 0..1 (e.g., opacity=0.8).
-                - boxpoints controls point display (e.g., "outliers", "all", or False).
-                - jitter controls point jitter (e.g., jitter=0.35).
-                - pointpos controls point position relative to the box (e.g., pointpos=0.0).
-
-            Returns:
-            figs : list or matplotlib.figure.Figure or None
-                If interactive=False: returns list of matplotlib figures (or a single fig in the non-pathway branch as in original).
-                If interactive=True: shows Plotly figures and returns figs or None (same behavior as original).
+        Generate box plots for selected ``features`` or pathway-derived feature sets.
+        
+        Parameters
+        ----------
+        hue : str
+            Column in ``self.samples`` used for x-axis grouping.
+        pathways : str or list[str] or None, optional
+            Pathway name or names used to resolve ``features`` through ``show_compounds``.
+        eids : sequence or None, optional
+            Empirical compound identifiers used to resolve feature rows.
+        rows : sequence of int or None, optional
+            Explicit feature row indices to plot.
+        significant : float, default=0.05
+            P-value threshold applied when rows are resolved from ``pathways`` or ``eids``.
+        grid_dim : tuple[int, int] or None, optional
+            Explicit subplot grid dimensions.
+        figsize : tuple[float, float] or None, optional
+            Figure size for static output.
+        title : str, default=''
+            Overall plot title.
+        zeros : bool, default=True
+            If ``False``, replace zero values with missing values before plotting.
+        cutoff_path : float, default=0.05
+            Pathway p-value threshold used when ``pathways`` is provided.
+        interactive : bool, default=True
+            If ``True``, generate Plotly output. Otherwise generate matplotlib/seaborn output.
+        category_order : list or None, optional
+            Explicit order for hue categories.
+        hue2 : str or None, optional
+            Optional second grouping column for split box plots.
+        hue2_order : list or None, optional
+            Explicit order for ``hue2`` categories.
+        hue2_palette : dict or list or None, optional
+            Palette used for ``hue2`` groups.
+        **boxplot_params : dict
+            Additional keyword arguments forwarded to the plotting backend.
+        
+        Returns
+        -------
+        list or object
+            Generated plot objects for the requested rows or pathways.
+        
+        Notes
+        -----
+        Common ``**boxplot_params`` options include Plotly-style arguments such as
+        ``boxpoints='outliers'``, ``jitter=0.3``, ``pointpos=-1.4``,
+        ``marker={'size': 5, 'opacity': 0.65}``, and ``line={'width': 1}``.
+        
+        In static seaborn mode, useful keyword arguments include ``width=0.55``,
+        ``showfliers=False``, ``linewidth=1``, ``dodge=True``, and ``palette='deep'``.
         """
 
         figs = []
@@ -1645,28 +1951,41 @@ class Rodin_Class:
 
     def violinplot(self, hue, pathways=None, eids=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", zeros=True, cutoff_path=0.05,interactive=True,category_order=None, **violinplot_params):
         """
-            Generates violin plots for specified pathways, rows, or EIDs with an option to filter by significance.
-
-            This function creates separate figures for each pathway, plotting all EIDs associated with that pathway.
-            The function can also plot specified rows or rows corresponding to a list of EIDs.
-
-            Parameters:
-            hue (str): Column name in 'self.samples' to be used for hue in the plots.
-            pathways (list of str or str, optional): Specific pathway(s) to include. If specified, plots all EIDs associated with these pathways.
-            eids (list, optional): A list of EIDs for which corresponding rows are to be plotted. If specified, only rows with these EIDs and p-values <= 'significant' will be considered.
-            rows (list, optional): A list of rows to be plotted. If 'None', rows will be determined based on 'eids' or 'pathway'.
-            significant (float, optional): A significance level (p-value threshold) to filter rows based on 'eids'. Default is 0.05.
-            grid_dim (tuple, optional): Dimensions for the grid of subplots (rows, columns). By default, it creates a single column of plots.
-            figsize (tuple, optional): Size of the figure (width, height). Auto-adjusted based on the number of plots if not provided.
-            title (str, optional): Overall title for the plot.
-            zeros (bool, optional): Whether to include zeros in the plot. Defaults to True.
-            cutoff_path (float, optional): Threshold for filtering pathways based on p-value. Defaults to 0.05.
-            interactive (bool, optional): Whether to generate interactive plots using Plotly. Defaults to True.
-            category_order (list, optional): A list of classes to change the order of plots.
-            **violinplot_params: Additional keyword arguments to be passed to seaborn's violinplot function.
-
-            Returns:
-            figs (list): A list of matplotlib figure objects containing the generated violin plots.
+        Generate violin plots for selected ``features`` or pathway-derived feature sets.
+        
+        Parameters
+        ----------
+        hue : str
+            Column in ``self.samples`` used for grouping on the x-axis.
+        pathways : str or list[str] or None, optional
+            Pathway name or names used to resolve ``features`` through ``show_compounds``.
+        eids : sequence or None, optional
+            Empirical compound identifiers used to resolve feature rows.
+        rows : sequence of int or None, optional
+            Explicit feature row indices to plot.
+        significant : float, default=0.05
+            P-value threshold applied when rows are resolved from ``pathways`` or ``eids``.
+        grid_dim : tuple[int, int] or None, optional
+            Explicit subplot grid dimensions.
+        figsize : tuple[float, float] or None, optional
+            Figure size for static output.
+        title : str, default=''
+            Overall plot title.
+        zeros : bool, default=True
+            If ``False``, replace zero values with missing values before plotting.
+        cutoff_path : float, default=0.05
+            Pathway p-value threshold used when ``pathways`` is provided.
+        interactive : bool, default=True
+            If ``True``, generate Plotly output. Otherwise generate matplotlib/seaborn output.
+        category_order : list or None, optional
+            Explicit order for hue categories.
+        **violinplot_params : dict
+            Additional keyword arguments forwarded to the plotting backend.
+        
+        Returns
+        -------
+        list or object
+            Generated plot objects for the requested rows or pathways.
         """
         
         figs = []
@@ -1855,30 +2174,43 @@ class Rodin_Class:
 
     def regplot(self, column, pathways=None, eids=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", zeros=True, x_limit=None, cutoff_path=0.05,interactive=True, trend='ols', **regplot_params):
         """
-            Generates regression plots for specified pathways, rows, or EIDs with an option to filter by significance.
-
-            This function creates separate figures for each pathway, plotting all EIDs associated with that pathway.
-            The function can also plot specified rows or rows corresponding to a list of EIDs.
-
-            Parameters:
-            column (str): Column name in 'self.samples' to be used for x in the plots.
-            pathways (list of str or str, optional): Specific pathway(s) to include. If specified, plots all EIDs associated with these pathways.
-            eids (list, optional): A list of EIDs for which corresponding rows are to be plotted. If specified, only rows with these EIDs and p-values <= 'significant' will be considered.
-            rows (list, optional): A list of rows to be plotted. If 'None', rows will be determined based on 'eids' or 'pathway'.
-            significant (float, optional): A significance level (p-value threshold) to filter rows based on 'eids'. Default is 0.05.
-            grid_dim (tuple, optional): Dimensions for the grid of subplots (rows, columns). By default, it creates a single column of plots.
-            figsize (tuple, optional): Size of the figure (width, height). Auto-adjusted based on the number of plots if not provided.
-            title (str, optional): Overall title for the plot.
-            zeros (bool, optional): Whether to include zeros in the plot. Defaults to True.
-            x_limit (tuple, optional): Limits for the x-axis. Defaults to None.
-            cutoff_path (float, optional): Threshold for filtering pathways based on p-value. Defaults to 0.05.
-            interactive (bool, optional): Whether to generate interactive plots using Plotly. Defaults to True.
-            trendline (str,optional): Use in interactive mode. One of 'ols', 'lowess', 'rolling', 'expanding' or 'ewm'. If ols, an Ordinary Least Squares regression line will be drawn for each discrete-color/symbol group. If 'lowess', a Locally Weighted Scatterplot Smoothing line will be drawn for each discrete-color/symbol group. If 'rolling', a Rolling (e.g. rolling average, rolling median) line will be drawn for each discrete-color/symbol group. If 'expanding', an Expanding (e.g. expanding average, expanding sum)line will be drawn for each discrete-color/symbol group. If 'ewm', an Exponentially Weighted Moment (e.g. exponentially-weighted movingaverage) line will be drawn for each discrete-color/symbol group.
-
-            **regplot_params: Additional keyword arguments to be passed to seaborn's regplot function.
-
-            Returns:
-            figs (list): A list of matplotlib figure objects containing the generated regression plots.
+        Generate regression plots for selected ``features`` or pathway-derived feature sets.
+        
+        Parameters
+        ----------
+        column : str
+            Continuous column in ``self.samples`` used for the x-axis.
+        pathways : str or list[str] or None, optional
+            Pathway name or names used to resolve ``features`` through ``show_compounds``.
+        eids : sequence or None, optional
+            Empirical compound identifiers used to resolve feature rows.
+        rows : sequence of int or None, optional
+            Explicit feature row indices to plot.
+        significant : float, default=0.05
+            P-value threshold applied when rows are resolved from ``pathways`` or ``eids``.
+        grid_dim : tuple[int, int] or None, optional
+            Explicit subplot grid dimensions.
+        figsize : tuple[float, float] or None, optional
+            Figure size for static output.
+        title : str, default=''
+            Overall plot title.
+        zeros : bool, default=True
+            If ``False``, replace zero values with missing values before plotting.
+        x_limit : tuple or None, optional
+            Optional x-axis limits for static output.
+        cutoff_path : float, default=0.05
+            Pathway p-value threshold used when ``pathways`` is provided.
+        interactive : bool, default=True
+            If ``True``, generate Plotly output. Otherwise generate matplotlib/seaborn output.
+        trend : str or None, default='ols'
+            Trend-line mode used for interactive output.
+        **regplot_params : dict
+            Additional keyword arguments forwarded to the plotting backend.
+        
+        Returns
+        -------
+        list or object
+            Generated plot objects for the requested rows or pathways.
         """
         figs=[]
         if figsize is not None:
@@ -2062,26 +2394,48 @@ class Rodin_Class:
             effect_size_line=None, logp=True, title="", legend=None, genomewideline_color='#EF553B', effect_size_line_color='#EF553B', highlight_color='#119DFF', col='#2A3F5F',
                 effect_size_line_width=1, **volcano_params):
         """
-            Generates a volcano plot with customizable parameters.
-
-            Parameters:
-            p (str): Column name in 'self.features' representing p-values to be plotted on the y-axis.
-            effect_size (str): Column name in 'self.features' representing effect sizes to be plotted on the x-axis.
-            sign_line (float, optional): Threshold value for the significance line. Default is 0.05.
-            annotation (str, optional): Column name or index for annotating points on the plot. Default is 'index'.
-            effect_size_line (list of bool, optional): A list indicating whether to draw effect size lines on the plot. Default is [False, False].
-            logp (bool, optional): Whether to log-transform p-values (-log10). Default is True.
-            title (str, optional): Title for the volcano plot. Default is an empty string.
-            legend (dict, optional): Custom legend to be displayed on the plot. Default is None.
-            effect_size_line_color (str, optional): Color of the effect size lines. Default is '#EF553B'.
-            genomewideline_color (str, optional): Color of the significance (genome-wide) line. Default is '#EF553B'.
-            highlight_color (str, optional): Color used to highlight points on the plot. Default is '#119DFF'.
-            col (str, optional): Default color for non-highlighted points on the plot. Default is '#2A3F5F'.
-            effect_size_line_width (int, optional): Width of the effect size lines. Default is 1.
-            **volcano_params: Additional keyword arguments to be passed to the volcano plot function.
-
-            Returns:
-            fig: A Plotly figure object containing the generated volcano plot.
+        Generate a volcano plot from feature statistics.
+        
+        Parameters
+        ----------
+        p : str
+            Column in ``self.features`` containing p-values.
+        effect_size : str
+            Column in ``self.features`` containing effect sizes.
+        sign_line : float, default=0.05
+            Threshold used for the horizontal significance line.
+        annotation : str, default='index'
+            Column name or index label used for point annotations.
+        effect_size_line : list or None, optional
+            Optional pair of x positions for vertical effect-size threshold lines.
+        logp : bool, default=True
+            If ``True``, transform p-values to ``-log10(p)``.
+        title : str, default=''
+            Plot title.
+        legend : dict or None, optional
+            Optional custom legend specification.
+        genomewideline_color : str, default='#EF553B'
+            Color of the significance line.
+        effect_size_line_color : str, default='#EF553B'
+            Color of the effect-size threshold lines.
+        highlight_color : str, default='#119DFF'
+            Color used for highlighted points.
+        col : str, default='#2A3F5F'
+            Base point color.
+        effect_size_line_width : int, default=1
+            Width of the effect-size threshold lines.
+        **volcano_params : dict
+            Additional keyword arguments forwarded to the plotting backend.
+        
+        Returns
+        -------
+        plotly.graph_objects.Figure
+            Interactive volcano plot.
+        
+        Raises
+        ------
+        ValueError
+            If ``self.features`` is missing or required columns are not present.
         """
     
         if self.features is None:
@@ -2141,13 +2495,17 @@ class Rodin_Class:
 
     def save(self,path):
         """
-            Saves the current Rodin_Class object to a file using pickle.
-
-            Parameters:
-            - path (str): The file path to save the object to.
-
-            Returns:
-            None: The object is saved to a file and the method returns nothing.
+        Serialize the current Rodin object to a pickle file.
+        
+        Parameters
+        ----------
+        path : str or path-like
+            Destination path for the pickle file.
+        
+        Returns
+        -------
+        None
+            The object is written to disk in pickle format.
         """
         
         with open(path, 'wb') as file:
@@ -2157,28 +2515,41 @@ class Rodin_Class:
     def analyze_pathways(self,pvals,stats,network='human_mfn',mode='f_positive',instrument='unspecified',permutation=100,
                          force_primary_ion=True,cutoff=0,modeling=None,pws_name='pathways',cmp_name='compounds'):
         """
-            Analyzes metabolic pathways by integrating user data with a metabolic network model.
-            The method performs pathway analysis based on provided statistics and p-values,
-            using various options for mass spectrometry data interpretation and pathway modeling.
-
-            Parameters:
-            - pvals (str): Column name in 'features' DataFrame representing p-values.
-            - stats (str): Column name in 'features' DataFrame representing statistic scores.
-            - network (str, optional): The metabolic network model to use (e.g., 'human_mfn', 'worm'). Defaults to 'human_mfn'.
-            - mode (str, optional): Mass spectrometry analysis mode (e.g., 'positive', 'negative'). Defaults to 'f_positive'.
-            - instrument (str, optional): Instrument accuracy specification (ppm). Defaults to 'unspecified'.
-            - permutation (int, optional): Number of permutations for null distribution estimation. Defaults to 100.
-            - force_primary_ion (bool, optional): Whether to enforce primary ion presence in metabolite prediction. Defaults to True.
-            - cutoff (float, optional): Cutoff p-value for selecting significant features.
-            - modeling (str, optional): Method for modeling permutation data (e.g., 'gamma'). Defaults to None.
-            - pws_name (str, optional): Key to store pathway analysis results in 'uns' dictionary. Defaults to 'pathways'.
-            - cmp_name (str, optional): Key to store compound analysis results in 'uns' dictionary. Defaults to 'compounds'.
-
-            Returns:
-            pd.DataFrame: A DataFrame with pathway analysis results, also stored in the 'uns' dictionary under 'pws_name'.
-
-            The method constructs a metabolic network from the specified model, matches model data with user data,
-            and performs pathway enrichment analysis. It supports different analytical modes and custom metabolic models.
+        Run pathway analysis from feature-level statistics.
+        
+        Parameters
+        ----------
+        pvals : str
+            Column in ``self.features`` containing p-values.
+        stats : str
+            Column in ``self.features`` containing feature-level statistics or effect scores.
+        network : str, default='human_mfn'
+            Metabolic network model to use.
+        mode : str, default='f_positive'
+            Ionization or acquisition mode used for metabolite matching.
+        instrument : str, default='unspecified'
+            Instrument or mass-accuracy specification.
+        permutation : int, default=100
+            Number of permutations used for enrichment estimation.
+        force_primary_ion : bool, default=True
+            Whether to enforce primary-ion matching.
+        cutoff : float, default=0
+            Feature-level cutoff used during pathway analysis.
+        modeling : str or None, optional
+            Optional permutation-modeling strategy.
+        pws_name : str, default='pathways'
+            Key used to store pathway results in ``self.uns``.
+        cmp_name : str, default='compounds'
+            Key used to store compound-level matches in ``self.uns``.
+        
+        Returns
+        -------
+        pandas.DataFrame
+            Pathway-enrichment table also stored in ``self.uns[pws_name]``.
+        
+        Notes
+        -----
+        Compound-level matches generated during the analysis are also stored in ``self.uns[cmp_name]``.
         """
 
         arg_dict = {
@@ -2283,15 +2654,21 @@ class Rodin_Class:
 
     def show_compounds(self, cutoff_path=0.05, cutoff_eids=0.05, paths=None):
         """
-            Returns a DataFrame with pathways and their associated compounds based on the given thresholds.
-
-            Parameters:
-            - cutoff_path (float, optional): Threshold for filtering pathways based on p-value. Defaults to 0.05.
-            - cutoff_eids (float, optional): Threshold for filtering compounds based on p-value. Defaults to 0.05.
-            - paths (list of str or str, optional): List of specific pathways to include. Defaults to None, which includes all pathways that pass the cutoff.
-
-            Returns:
-            DataFrame: A DataFrame with pathways and their associated compounds.
+        Return compound-level matches for selected pathways.
+        
+        Parameters
+        ----------
+        cutoff_path : float, default=0.05
+            Maximum pathway p-value used when ``paths`` is not provided.
+        cutoff_eids : float, default=0.05
+            Maximum compound p-value used to retain matched compounds.
+        paths : str or list[str] or None, optional
+            Explicit pathway name or names to include.
+        
+        Returns
+        -------
+        pandas.DataFrame
+            Compound table indexed by pathway and empirical compound identifier.
         """
         
         # Handle paths parameter and filter pathways
@@ -2342,6 +2719,49 @@ class Rodin_Class:
     #####################    
     def web_boxplot(self, hue, dist='box', pathways=None, eids=None, rows=None, significant=0.05, grid_dim=None, figsize=None, title="", zeros=True, cutoff_path=0.05,interactive=True,category_order=None, trend='ols',points='all',**boxplot_params):
 
+        """
+        Generate web-oriented plot objects for box, violin, or scatter distributions.
+        
+        Parameters
+        ----------
+        hue : str
+            Column in ``self.samples`` used for grouping or the x-axis.
+        dist : {'box', 'violin', 'scatter'}, default='box'
+            Plot type to generate.
+        pathways : str or list[str] or None, optional
+            Pathway name or names used to resolve ``features`` through ``show_compounds``.
+        eids : sequence or None, optional
+            Empirical compound identifiers used to resolve feature rows.
+        rows : sequence of int or None, optional
+            Explicit feature row indices to plot.
+        significant : float, default=0.05
+            P-value threshold applied when rows are resolved from ``pathways`` or ``eids``.
+        grid_dim : tuple[int, int] or None, optional
+            Explicit subplot grid dimensions.
+        figsize : tuple[float, float] or None, optional
+            Figure size for static output when applicable.
+        title : str, default=''
+            Overall plot title.
+        zeros : bool, default=True
+            If ``False``, replace zero values with missing values before plotting.
+        cutoff_path : float, default=0.05
+            Pathway p-value threshold used when ``pathways`` is provided.
+        interactive : bool, default=True
+            If ``True``, generate Plotly output.
+        category_order : list or None, optional
+            Explicit order for x-axis categories.
+        trend : str or None, default='ols'
+            Trend-line mode used for scatter output.
+        points : str, default='all'
+            Point-display mode for violin plots.
+        **boxplot_params : dict
+            Additional keyword arguments forwarded to the plotting backend.
+        
+        Returns
+        -------
+        list
+            Plot objects generated for the requested rows or pathways.
+        """
         figs = []
         
         # Handle the case where pathways, eids, and rows are all None
@@ -2498,6 +2918,36 @@ class Rodin_Class:
         
     def web_plot(self, hue=None, dr_name='umap', size=None, markers=None,title = "",interactive=True, **scatterplot_params):
             
+        """
+        Generate a Plotly embedding plot for web contexts.
+        
+        Parameters
+        ----------
+        hue : str or None, optional
+            Column in ``self.samples`` used for point color.
+        dr_name : str, default='umap'
+            Key of the dimensionality-reduction result stored in ``self.dr``.
+        size : str or None, optional
+            Column in ``self.samples`` used for point size.
+        markers : str or None, optional
+            Column in ``self.samples`` used for point symbol.
+        title : str, default=''
+            Plot title.
+        interactive : bool, default=True
+            Reserved for API compatibility.
+        **scatterplot_params : dict
+            Additional keyword arguments forwarded to Plotly.
+        
+        Returns
+        -------
+        plotly.graph_objects.Figure
+            Plotly scatter figure for the requested embedding.
+        
+        Raises
+        ------
+        ValueError
+            If the requested embedding or metadata columns are missing.
+        """
         if dr_name not in self.dr:
             raise ValueError(f"Reduction '{dr_name}' not found in 'dr'.")
     
@@ -2545,17 +2995,26 @@ class Rodin_Class:
 
 def create_object_csv(file_path_features, file_path_classes,feat_sep='\t',class_sep='\t', feat_stat='mzrt'):
     """
-        Creates a Rodin_Class object from CSV files for features and classes.
-
-        Parameters:
-        - file_path_features (str): File path to the CSV file containing features.
-        - file_path_classes (str): File path to the CSV file containing class information.
-        - feat_sep (str, optional): Separator used in the features CSV file. Defaults to '\\t'.
-        - class_sep (str, optional): Separator used in the classes CSV file. Defaults to '\\t'.
-        - feat_stat (str, optional): Feature status mode indicating the layout of the feature table. Use 'mzrt' if the first two columns are mass-to-charge ratio (mz) and retention time (rt), or 'ann' if one column is dedicated to annotations.
-
-        Returns:
-        Rodin_Class: A new instance of Rodin_Class populated with data from the provided CSV files.
+    Create a ``Rodin_Class`` object from feature and metadata CSV files.
+    
+    Parameters
+    ----------
+    file_path_features : str or path-like
+        Path to the feature table.
+    file_path_classes : str or path-like
+        Path to the sample metadata table.
+    feat_sep : str, default='\\t'
+        Field separator used in the feature table.
+    class_sep : str, default='\\t'
+        Field separator used in the sample metadata table.
+    feat_stat : {'mzrt', 'ann'}, default='mzrt'
+        Feature-table layout. Use ``'mzrt'`` when the first two columns are ``m/z`` and retention time,
+        or ``'ann'`` when the first column stores feature annotations.
+    
+    Returns
+    -------
+    Rodin_Class
+        Rodin object populated from the provided files.
     """
     
     # Load the data
@@ -2579,6 +3038,26 @@ def create_object_csv(file_path_features, file_path_classes,feat_sep='\t',class_
     return Rodin_Class(X=X, features=features,samples=samples)
 
 def _sep(src, hint=None) -> str:
+    """
+    Infer a table delimiter from a file path, URL, or file-like object.
+    
+    Parameters
+    ----------
+    src : str or path-like or file-like
+        Input source used to read the first line.
+    hint : str or None, optional
+        Explicit delimiter to return without autodetection.
+    
+    Returns
+    -------
+    str
+        Detected delimiter, currently tab or comma.
+    
+    Raises
+    ------
+    ValueError
+        If no supported delimiter can be detected.
+    """
     if hint is not None:
         return hint
 
@@ -2616,6 +3095,26 @@ def _sep(src, hint=None) -> str:
     raise ValueError("Cannot detect separator (no ',' or '\t' found).")
 
 def _auto_mode(df, hint=None) -> str:
+    """
+    Infer the feature-table mode from column headers and values.
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Feature table after any leading ``#`` index column has been removed.
+    hint : {'mzrt', 'ann'} or None, optional
+        Explicit mode to use without autodetection.
+    
+    Returns
+    -------
+    str
+        Either ``'mzrt'`` or ``'ann'``.
+    
+    Notes
+    -----
+    The function prefers ``'mzrt'`` when header names look like ``m/z`` and retention time,
+    or when the first feature column is mostly numeric.
+    """
     if hint in ("mzrt", "ann"):
         return hint
     # header hints
@@ -2629,49 +3128,52 @@ def _auto_mode(df, hint=None) -> str:
 
 def create(features_file, meta_file=None, feat_sep=None, meta_sep=None, mode=None):
     """
-        Create a Rodin_Class object from a feature table and optional metadata.
-
-        Reads feature intensities and optional sample metadata, then returns a Rodin object
-        with aligned 'X', 'features', and 'samples'.
-
-        Parameters:
-        - features_file (str): 
-            Path, URL, or file-like object for the feature table (CSV/TSV).
-            Layout depends on 'mode': for "mzrt", the first two columns are feature descriptors (m/z, retention time);
-            for "ann", the first column is annotation/feature ID. Remaining columns are sample intensities.
-
-        - meta_file (str | None, optional): 
-            Path, URL, or file-like object for sample metadata.
-            If None, 'samples' is created from 'X.columns' with a single 'sample_id' column.
-            Expected layout is sample IDs in the first column and annotations in the remaining columns.
-
-        - feat_sep (str | None, optional): 
-            Separator for the feature table. If None, autodetects tab ('\\t') or comma (',').
-
-        - meta_sep (str | None, optional):
-            Separator for the metadata table. If None, autodetects tab ('\\t') or comma (',').
-
-        - mode ({"mzrt", "ann"} | None, optional): 
-            Feature-table mode. If None, mode is inferred from headers and values.
-            Resolves to "mzrt" when mz/rt-like headers are detected or when the first feature column is mostly numeric; otherwise resolves to "ann".
-
-        Returns:
-        Rodin_Class: Rodin object with aligned 'X', 'features', and 'samples'.
-        The object also stores 'obj.uns["mode"]' and 'obj.uns["file_type"]'.
-
-        Notes:
-        When metadata is provided, only overlapping sample IDs are retained and column order is aligned to metadata order.
-        Duplicate sample IDs in metadata are reduced to the first occurrence.
-        Columns in 'X' starting with prefixes ('p_val', 'p_adj', 'umap', 'pca', 't-sne', 'imp', 'lfc', 'vip') are moved to 'features'.
-        Special cases:
-        - If the first header in the feature table is '#', that column is used as feature index and removed.
-        - If the first header in the metadata table is '#', that column is used as metadata index and removed.
-
-        Prints:
-        Detected mode and separators, sample removals, reorder status, and final matrix size.
-
-        Raises:
-        ValueError: If separators cannot be detected, if there are no overlapping sample IDs between 'X' and metadata, or if '#' index length mismatches row count.
+    Create a ``Rodin_Class`` object from a feature table and optional metadata.
+    
+    This function reads a feature-intensity table together with optional sample
+    metadata, aligns overlapping sample identifiers, and returns a Rodin object
+    with synchronized ``X``, ``features``, and ``samples`` tables.
+    
+    Parameters
+    ----------
+    features_file : str or path-like or file-like
+        Feature table in CSV or TSV format.
+    meta_file : str or path-like or file-like or None, optional
+        Sample metadata table. If omitted, a minimal ``samples`` table is created from the columns of ``X``.
+    feat_sep : str or None, optional
+        Delimiter for the feature table. If ``None``, the delimiter is inferred automatically.
+    meta_sep : str or None, optional
+        Delimiter for the metadata table. If ``None``, the delimiter is inferred automatically.
+    mode : {'mzrt', 'ann'} or None, optional
+        Feature-table layout. If ``None``, the layout is inferred from header names and the first feature column.
+    
+    Returns
+    -------
+    Rodin_Class
+        Rodin object with aligned ``X``, ``features``, and ``samples``. The returned object also stores
+        ``obj.uns['mode']`` and ``obj.uns['file_type']``.
+    
+    Raises
+    ------
+    ValueError
+        If delimiters cannot be inferred, if sample IDs do not overlap between the feature and metadata tables,
+        or if a leading ``#`` index column has inconsistent length.
+    
+    Notes
+    -----
+    When metadata is provided, only overlapping sample IDs are retained and the columns of ``X`` are reordered
+    to match the metadata order.
+    
+    If the first header in the feature table or metadata table is ``#``, that column is used as the row index
+    for the corresponding table and then removed from the data matrix.
+    
+    Columns in the provisional ``X`` table whose names start with prefixes such as ``p_val``, ``p_adj``, ``umap``,
+    ``pca``, ``t-sne``, ``imp``, ``lfc``, or ``vip`` are moved into ``features``.
+    
+    Prints
+    ------
+    status : str
+        Informational messages about detected separators, inferred mode, removed ``samples``, reordering, and final size.
     """
     used_feat_sep = _sep(features_file, feat_sep)
     data = pd.read_csv(features_file, sep=used_feat_sep)
@@ -2792,16 +3294,22 @@ def create(features_file, meta_file=None, feat_sep=None, meta_sep=None, mode=Non
 
 def import_object(path):
     """
-        Loads a Rodin_Class object from a pickle file.
-
-        Parameters:
-        - path (str): The file path from which to load the object.
-
-        Returns:
-        Rodin_Class: The loaded Rodin_Class object.
+    Load a pickled ``Rodin_Class`` object from disk.
+    
+    Parameters
+    ----------
+    path : str or path-like
+        Path to the pickle file.
+    
+    Returns
+    -------
+    Rodin_Class
+        Deserialized Rodin object loaded from ``path``.
     """
     
     with open(path, 'rb') as file:
         loaded_obj = pickle.load(file)
 
     return loaded_obj
+
+
