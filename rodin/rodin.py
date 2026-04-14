@@ -380,8 +380,12 @@ class Rodin_Class:
 
             features_sliced = self.features.loc[row_idx]
 
-            sample_ids = self.samples.iloc[:, 0]
-            samples_sliced = self.samples[sample_ids.isin(col_idx)]
+            sample_col = self.samples.columns[0]
+            samples_sliced = (
+                self.samples.set_index(sample_col)
+                .loc[list(col_idx)]
+                .reset_index()
+            )
 
         # Creating a new Rodin object with sliced data
             sliced_obj = Rodin_Class(X=X_sliced, samples=samples_sliced, features=features_sliced,
