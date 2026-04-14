@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='rodin',
-    version='1.9.25',
+    version='1.9.26',
     packages=find_packages(),
     description='A comprehensive toolkit for processing and analyzing metabolomics data.',
     long_description=open('README.md').read(),
