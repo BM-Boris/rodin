@@ -4,7 +4,6 @@ from scipy import sparse
 from typing import Union, Optional
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-import umap
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
@@ -485,6 +484,8 @@ class Rodin_Class:
             data = self.dr[pca_name]
         else:
             data = self.X.T
+
+        import umap
 
         # Perform UMAP
         umap_result = umap.UMAP(n_components=n_components, **umap_params).fit_transform(data)
@@ -3315,5 +3316,4 @@ def import_object(path):
         loaded_obj = pickle.load(file)
 
     return loaded_obj
-
 
