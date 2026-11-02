@@ -2517,7 +2517,7 @@ class Rodin_Class:
             pickle.dump(self, file)
 
 
-    def analyze_pathways(self,pvals,stats,network='human_mfn',mode='f_positive',instrument='unspecified',permutation=100,
+    def analyze_pathways(self,pvals,stats,network='human_mfn',mode='f_positive',instrument=5,permutation=100,
                          force_primary_ion=True,cutoff=0,modeling=None,pws_name='pathways',cmp_name='compounds'):
         """
         Run pathway analysis from feature-level statistics.
@@ -2532,7 +2532,7 @@ class Rodin_Class:
             Metabolic network model to use.
         mode : str, default='f_positive'
             Ionization or acquisition mode used for metabolite matching.
-        instrument : str, default='unspecified'
+        instrument : int or str, default=5
             Instrument or mass-accuracy specification.
         permutation : int, default=100
             Number of permutations used for enrichment estimation.
